@@ -44,6 +44,7 @@
   .askrow{max-width:560px;margin:0 auto;display:flex;gap:10px;align-items:flex-end}
   .send{width:52px;height:52px;flex-shrink:0;border:none;border-radius:999px;background:var(--gold);display:flex;align-items:center;justify-content:center;cursor:pointer}
   .send.cam{background:transparent;border:1.5px solid var(--gold)}
+  .send.mic.on{background:#F6B4A0;border-color:#F6B4A0}
   .send:disabled{opacity:.5;cursor:default}
   .msg img{display:block;max-width:100%;max-height:260px;border-radius:10px;margin-top:8px}
   .row{display:flex;justify-content:space-between;align-items:center;gap:10px}
@@ -215,6 +216,9 @@
     <button class="send cam" id="cam" aria-label="Snap a receipt">
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#D4A84B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"></path><circle cx="12" cy="13" r="3.5"></circle></svg>
     </button>
+    <button class="send cam mic" id="mic" aria-label="Speak to AMI">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#D4A84B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"></rect><path d="M5 11a7 7 0 0 0 14 0"></path><path d="M12 18v3"></path></svg>
+    </button>
     <input type="file" id="camFile" accept="image/*" capture="environment" class="hidden">
     <textarea id="q" rows="1" placeholder="Ask AMI, or snap a receipt..."></textarea>
     <button class="send" id="send" aria-label="Send">
@@ -374,6 +378,21 @@ $("camFile").onchange = async (e) => {
   const f = e.target.files && e.target.files[0]; e.target.value = ""; if (!f) return;
   let url; try { url = await shrink(f); } catch (_) { bubble("I could not open that photo. Please try again.", "ai"); return; }
   show("vHome"); ask({ media_type: "image/jpeg", data: url.split(",")[1], preview: url });
+};
+// Voice: tap the mic, speak, AMI types it and sends it
+const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+let rec = null, heard = "";
+if (!SpeechRec) $("mic").classList.add("hidden");
+$("mic").onclick = () => {
+  if (rec) { rec.stop(); return; }
+  try { rec = new SpeechRec(); } catch (_) { rec = null; bubble("Voice is not available in this browser. Use your keyboard's microphone instead.", "ai"); return; }
+  rec.lang = navigator.language || "en-US"; rec.interimResults = true; rec.continuous = false;
+  heard = ""; const before = $("q").value.trim();
+  $("mic").classList.add("on"); $("q").placeholder = "Listening... speak now";
+  rec.onresult = (e) => { heard = Array.from(e.results).map(r => r[0].transcript).join(""); $("q").value = (before ? before + " " : "") + heard; };
+  rec.onerror = (e) => { if (e.error === "not-allowed" || e.error === "service-not-allowed") bubble("Please allow the microphone for this page, then tap the mic again.", "ai"); };
+  rec.onend = () => { rec = null; $("mic").classList.remove("on"); $("q").placeholder = "Ask AMI, or snap a receipt..."; if (heard.trim()) ask(); };
+  try { rec.start(); } catch (_) { rec = null; $("mic").classList.remove("on"); }
 };
 $("q").addEventListener("keydown", e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); ask(); } });
 
@@ -1087,7 +1106,7 @@ $("tourBtn").onclick = () => startTour();
 const steps = [
   ["vHome", "Welcome to AMI. Six quick tips and you're ready. Today's brief at the top shows your day."],
   ["vHome", "Type any question in the box at the bottom and tap the gold arrow."],
-  ["vHome", "Tap the camera to snap a receipt. AMI reads it, books the expense and keeps the photo in Documents."],
+  ["vHome", "Tap the camera to snap a receipt: AMI reads it, books the expense and keeps the photo. Tap the microphone to speak instead of typing."],
   ["vSections", "Each tile keeps real records: add them yourself, or just tell AMI in the chat and it saves them for you."],
   ["vSettings", "Add your WhatsApp number here to chat with AMI on WhatsApp too."],
   ["vPlans", "Your trial is free for 30 days. Pick a plan here before it ends."],

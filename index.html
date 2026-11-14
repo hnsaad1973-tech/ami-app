@@ -4,6 +4,11 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0B1B33">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="AMI">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>AMI — Asset Management Innovations</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
@@ -187,6 +192,14 @@
         <input id="wa" type="tel" placeholder="+231 77 000 0000" autocomplete="tel">
         <button class="btn" id="saveWa">Save my number</button>
         <div id="waMsg" class="ok"></div>
+      </div>
+      <div class="card">
+        <div class="row"><div style="font-weight:600">Notifications</div><div id="pushState" class="sub"></div></div>
+        <p style="font-size:14px">AMI alerts your phone 30 minutes before calendar items, and at 8am with your to-dos for the day.</p>
+        <div id="pushHelp" class="sub" style="font-size:14px;line-height:1.5"></div>
+        <button class="btn" id="pushOn">Turn on notifications</button>
+        <button class="btn ghost" id="pushTest" style="display:none">Send me a test</button>
+        <div id="pushMsg" class="ok"></div>
       </div>
       <div class="card">
         <div class="row"><div style="font-weight:600">Questions today</div><div id="usageTxt" class="sub"></div></div>
@@ -396,20 +409,30 @@ $("camFile").onchange = async (e) => {
   let url; try { url = await shrink(f); } catch (_) { bubble("I could not open that photo. Please try again.", "ai"); return; }
   show("vHome"); ask({ media_type: "image/jpeg", data: url.split(",")[1], preview: url });
 };
-// Voice: tap the mic, speak, AMI types it and sends it
+// Voice: tap the mic, speak, tap it again to stop. Words go into the box; tap the arrow to send.
 const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
-let rec = null, heard = "";
-if (!SpeechRec) $("mic").classList.add("hidden");
+let rec = null, heardFinal = "", heardBase = "";
+function micOff(){ $("mic").classList.remove("on"); $("q").placeholder = "Ask AMI..."; }
+function micHelp(t){ bubble(t, "ai"); }
 $("mic").onclick = () => {
-  if (rec) { rec.stop(); return; }
-  try { rec = new SpeechRec(); } catch (_) { rec = null; bubble("Voice is not available in this browser. Use your keyboard's microphone instead.", "ai"); return; }
-  rec.lang = navigator.language || "en-US"; rec.interimResults = true; rec.continuous = false;
-  heard = ""; const before = $("q").value.trim();
-  $("mic").classList.add("on"); $("q").placeholder = "Listening... speak now";
-  rec.onresult = (e) => { heard = Array.from(e.results).map(r => r[0].transcript).join(""); $("q").value = (before ? before + " " : "") + heard; };
-  rec.onerror = (e) => { if (e.error === "not-allowed" || e.error === "service-not-allowed") bubble("Please allow the microphone for this page, then tap the mic again.", "ai"); };
-  rec.onend = () => { rec = null; $("mic").classList.remove("on"); $("q").placeholder = "Ask AMI..."; if (heard.trim()) ask(); };
-  try { rec.start(); } catch (_) { rec = null; $("mic").classList.remove("on"); }
+  if (!SpeechRec) { micHelp("Voice isn't available in this browser. Tap the box and use the microphone on your keyboard instead."); $("q").focus(); return; }
+  if (rec) { try { rec.stop(); } catch (_) {} return; }
+  try { rec = new SpeechRec(); } catch (_) { rec = null; micHelp("Voice could not start. Use the microphone on your keyboard instead."); return; }
+  rec.lang = "en-US"; rec.interimResults = true; rec.continuous = true; rec.maxAlternatives = 1;
+  heardFinal = ""; heardBase = $("q").value.trim();
+  $("mic").classList.add("on"); $("q").placeholder = "Listening... tap the mic to stop";
+  rec.onresult = (e) => {
+    let interim = "";
+    for (let i = e.resultIndex; i < e.results.length; i++) { const t = e.results[i][0].transcript; if (e.results[i].isFinal) heardFinal += t + " "; else interim += t; }
+    $("q").value = ((heardBase ? heardBase + " " : "") + heardFinal + interim).replace(/\s+/g, " ").trim();
+  };
+  rec.onerror = (e) => {
+    if (e.error === "not-allowed" || e.error === "service-not-allowed") micHelp("The microphone is blocked here. Open AMI from its Home Screen icon (or in Safari) and allow the microphone, or use the microphone on your keyboard.");
+    else if (e.error === "no-speech") micHelp("I didn't hear anything. Tap the mic and speak again.");
+    else if (e.error !== "aborted") micHelp("Voice stopped. You can use the microphone on your keyboard instead.");
+  };
+  rec.onend = () => { rec = null; micOff(); };
+  try { rec.start(); } catch (_) { rec = null; micOff(); micHelp("Voice could not start. Use the microphone on your keyboard instead."); }
 };
 $("q").addEventListener("keydown", e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); ask(); } });
 
@@ -421,6 +444,44 @@ $("saveWa").onclick = async () => {
   const { error } = await sb.from("members").update({ whatsapp_phone: n, whatsapp_verified: false }).eq("user_id", me.user.id).eq("org_id", me.member.org_id);
   $("waMsg").textContent = error ? (error.message.includes("duplicate") ? "That number is already used by another account." : error.message) : "Saved. You can now message AMI on WhatsApp from this number.";
   if (!error) { me.member.whatsapp_phone = n; paint(); }
+};
+// Notifications (phone alerts for calendar and to-do)
+const VAPID = "BM8C4Me9DMF4Tuh_XIDOhbhli9vT7BjGFB-jYNk_U2zd77nOSABY3KAhUCUFDxjp1kH4sdaBmBXDoHt9m3xTt6M";
+const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+const standalone = (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches) || navigator.standalone === true;
+let swReg = null;
+function u8(b){ const p = "=".repeat((4 - b.length % 4) % 4); const s = atob((b + p).replace(/-/g, "+").replace(/_/g, "/")); return Uint8Array.from(s, c => c.charCodeAt(0)); }
+async function pushPaint(){
+  const ok = !!swReg && "PushManager" in window && "Notification" in window;
+  let on = false; try { on = ok && Notification.permission === "granted" && !!(await swReg.pushManager.getSubscription()); } catch (_) {}
+  $("pushState").textContent = on ? "On" : "Off";
+  $("pushOn").style.display = on ? "none" : ""; $("pushTest").style.display = on ? "" : "none";
+  $("pushOn").disabled = !ok;
+  $("pushHelp").textContent = ok ? "" : (isIOS && !standalone
+    ? "On iPhone, first add AMI to your Home Screen: open this page in Safari, tap the Share button, then \"Add to Home Screen\". Open AMI from that icon and come back here."
+    : "This browser can't show notifications. Try Chrome or Safari.");
+}
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").then(r => { swReg = r; pushPaint(); }).catch(() => pushPaint()); else pushPaint();
+$("pushOn").onclick = async () => {
+  $("pushMsg").textContent = "";
+  try {
+    const perm = await Notification.requestPermission();
+    if (perm !== "granted") { $("pushMsg").textContent = "Notifications were not allowed. Turn them on for AMI in your phone's Settings > Notifications."; return; }
+    const sub = await swReg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: u8(VAPID) });
+    const j = sub.toJSON();
+    const { error } = await sb.from("push_subs").upsert({ user_id: me.user.id, org_id: me.member.org_id, endpoint: j.endpoint, p256dh: j.keys.p256dh, auth: j.keys.auth }, { onConflict: "endpoint" });
+    $("pushMsg").textContent = error ? "Could not save: " + error.message : "Notifications are on. Tap \"Send me a test\" to check.";
+  } catch (e) { $("pushMsg").textContent = "Could not turn on: " + e.message; }
+  pushPaint();
+};
+$("pushTest").onclick = async () => {
+  $("pushMsg").textContent = "Sending...";
+  try {
+    const { data: { session } } = await sb.auth.getSession();
+    const r = await fetch(`${SB_URL}/functions/v1/notify`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: "Bearer " + session.access_token, apikey: SB_KEY }, body: JSON.stringify({ test: true }) });
+    const j = await r.json().catch(() => ({}));
+    $("pushMsg").textContent = j.sent ? "Test sent. It should pop up in a few seconds." : ("Could not send: " + (j.error || r.status));
+  } catch (e) { $("pushMsg").textContent = "No connection. Try again."; }
 };
 $("signOut").onclick = async () => { await sb.auth.signOut(); me = null; show("vEmail"); $("trialBadge").classList.add("hidden"); };
 

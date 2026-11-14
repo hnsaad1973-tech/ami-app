@@ -141,7 +141,7 @@
         <div id="brief" style="display:flex;flex-direction:column;gap:10px"></div>
         <div class="sub">Tap a line to open that section. Soon AMI will also send this brief to your WhatsApp every morning.</div>
       </div>
-      <div class="k" style="margin-top:4px">ASK AMI</div>
+      <div class="row" style="margin-top:4px"><div class="k">ASK AMI</div><button id="clearChat" type="button" style="min-height:40px;padding:0 14px;border-radius:999px;border:1px solid var(--edge);background:transparent;color:var(--soft);font-size:13px;font-weight:600;cursor:pointer">Clear chat</button></div>
       <div class="chat" id="chat"></div>
     </section>
 
@@ -300,7 +300,7 @@ $("startTrial").onclick = async () => {
 async function loadMe(){
   const { data: { user } } = await sb.auth.getUser();
   if (!user) return null;
-  const { data } = await sb.from("members").select("org_id, role, full_name, email, whatsapp_phone, whatsapp_verified, orgs(name,business_type,base_currency,doc_address,doc_phone,doc_email,doc_tin,doc_footer)").eq("user_id", user.id).limit(1);
+  const { data } = await sb.from("members").select("org_id, role, full_name, email, whatsapp_phone, whatsapp_verified, chat_cleared_at, orgs(name,business_type,base_currency,doc_address,doc_phone,doc_email,doc_tin,doc_footer)").eq("user_id", user.id).limit(1);
   if (!data || !data.length) return { user, member: null };
   const m = data[0];
   const [{ data: sub }, { data: use }] = await Promise.all([
@@ -330,7 +330,9 @@ function paint(){
 }
 async function loadChat(){
   $("chat").innerHTML = "";
-  const { data } = await sb.from("messages").select("role,content").eq("org_id", me.member.org_id).eq("user_id", me.user.id).order("created_at", { ascending: false }).limit(30);
+  let mq = sb.from("messages").select("role,content").eq("org_id", me.member.org_id).eq("user_id", me.user.id);
+  if (me.member.chat_cleared_at) mq = mq.gt("created_at", me.member.chat_cleared_at);
+  const { data } = await mq.order("created_at", { ascending: false }).limit(30);
   const rows = (data || []).reverse();
   if (!rows.length) bubble(`Welcome${me.member.full_name ? ", " + me.member.full_name.split(" ")[0] : ""}! I'm AMI. ${(me.member.orgs?.business_type === "fashion") ? "I'm here for your fashion business: client measurements, pricing orders, fittings, fabric, designs and your social media posts. What are you working on today?" : "Ask me anything about your business: draft a letter, plan your week, explain a tax rule, or check today's news."}`, "ai");
   rows.forEach(r => bubble(r.content, r.role === "user" ? "me" : "ai"));
@@ -363,6 +365,16 @@ async function ask(img){
   $("send").disabled = false; $("cam").disabled = false;
 }
 $("send").onclick = () => ask();
+// Clear chat: hides old messages and starts AMI fresh (records, books and memory stay)
+$("clearChat").onclick = async () => {
+  const b = $("clearChat");
+  if (!b.dataset.sure) { b.dataset.sure = "1"; b.textContent = "Tap again to clear"; b.style.color = "#F2B8A0"; setTimeout(() => { delete b.dataset.sure; b.textContent = "Clear chat"; b.style.color = ""; }, 3000); return; }
+  delete b.dataset.sure; b.textContent = "Clear chat"; b.style.color = "";
+  const now = new Date().toISOString();
+  const { error } = await sb.from("members").update({ chat_cleared_at: now }).eq("user_id", me.user.id).eq("org_id", me.member.org_id);
+  if (error) { bubble("Could not clear the chat. Please try again.", "ai"); return; }
+  me.member.chat_cleared_at = now; await loadChat();
+};
 // Camera: snap a receipt, shrink it, send it to AMI
 async function shrink(file){
   const url = URL.createObjectURL(file); const img = new Image();

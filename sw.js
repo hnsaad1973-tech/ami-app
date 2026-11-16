@@ -5,7 +5,7 @@ self.addEventListener("push", (e) => {
   let d = {};
   try { d = e.data ? e.data.json() : {}; } catch (_) { d = { body: e.data ? e.data.text() : "" }; }
   e.waitUntil(self.registration.showNotification(d.title || "AMI", {
-    body: d.body || "", icon: "https://xxdqrvcpxhsepwzfmnjs.supabase.co/storage/v1/object/public/public-assets/ami/icon-192.png", badge: "https://xxdqrvcpxhsepwzfmnjs.supabase.co/storage/v1/object/public/public-assets/ami/icon-192.png", tag: d.tag || undefined, data: { url: d.url || "./" },
+    body: d.body || "", icon: "icon-192.png", badge: "icon-192.png", tag: d.tag || undefined, data: { url: d.url || "./" },
   }));
 });
 self.addEventListener("notificationclick", (e) => {
@@ -16,3 +16,6 @@ self.addEventListener("notificationclick", (e) => {
     return self.clients.openWindow(url);
   }));
 });
+
+// Needed for "Install app": pass every request straight to the network
+self.addEventListener("fetch", () => {});

@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0B1B33">
 <link rel="manifest" href="manifest.json">
-<link rel="apple-touch-icon" href="https://xxdqrvcpxhsepwzfmnjs.supabase.co/storage/v1/object/public/public-assets/ami/icon-180.png">
+<link rel="apple-touch-icon" href="icon-180.png">
 <link rel="icon" type="image/png" href="https://xxdqrvcpxhsepwzfmnjs.supabase.co/storage/v1/object/public/public-assets/ami/icon-192.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="AMI 2 Business">
@@ -144,6 +144,11 @@
 
     <!-- HOME: chat -->
     <section id="vHome" class="hidden" style="display:flex;flex-direction:column;flex:1;gap:14px">
+      <div class="card hidden" id="installCard">
+        <div class="row"><div style="font-weight:600">Install AMI on this device</div><button class="btn ghost" id="installHide" style="padding:4px 10px">Later</button></div>
+        <div class="sub" id="installHelp" style="font-size:14px;line-height:1.5">Open AMI straight from your home screen, full screen, with notifications.</div>
+        <button class="btn" id="installBtn">Install AMI</button>
+      </div>
       <div class="card">
         <div class="row"><div class="k">TODAY'S BRIEF</div><span class="soon live" id="briefDate"></span></div>
         <div id="brief" style="display:flex;flex-direction:column;gap:10px"></div>
@@ -369,7 +374,10 @@ async function route(first = false){
 async function ask(img){
   if (!img || !img.data) img = null;
   const text = $("q").value.trim(); if (!text && !img) return;
-  $("q").value = ""; $("send").disabled = true; $("cam").disabled = true;
+  if (rec) { try { rec.abort(); } catch (_) {} rec = null; micOff(); }
+  heardFinal = ""; heardBase = "";
+  $("q").value = ""; $("q").blur(); setTimeout(() => { $("q").value = ""; }, 60);
+  $("send").disabled = true; $("cam").disabled = true;
   if (img) { const b = bubble(text || "Receipt photo", "me"); const im = document.createElement("img"); im.src = img.preview; im.alt = "Receipt photo"; b.appendChild(im); }
   else bubble(text, "me");
   const wait = bubble(img ? "AMI is reading the receipt..." : "AMI is thinking...", "ai typing");
@@ -484,6 +492,37 @@ $("pushTest").onclick = async () => {
     $("pushMsg").textContent = j.sent ? "Test sent. It should pop up in a few seconds." : ("Could not send: " + (j.error || r.status));
   } catch (e) { $("pushMsg").textContent = "No connection. Try again."; }
 };
+// Install AMI (Android/Chrome prompt; iPhone steps)
+let installEvt = null;
+function installPaint(){
+  let hidden = false; try { hidden = Number(localStorage.getItem("ami_install_later") || 0) > Date.now(); } catch (_) {}
+  const show_ = !standalone && !hidden && (installEvt || isIOS);
+  $("installCard").classList.toggle("hidden", !show_);
+  if (isIOS) { $("installHelp").textContent = "On iPhone: open AMI in Safari, tap the Share button, then \"Add to Home Screen\" and tap Add. Then open AMI from its icon."; $("installBtn").style.display = "none"; }
+}
+window.addEventListener("beforeinstallprompt", (e) => { e.preventDefault(); installEvt = e; installPaint(); });
+window.addEventListener("appinstalled", () => { installEvt = null; $("installCard").classList.add("hidden"); });
+$("installBtn").onclick = async () => { if (!installEvt) return; installEvt.prompt(); try { await installEvt.userChoice; } catch (_) {} installEvt = null; installPaint(); };
+$("installHide").onclick = () => { try { localStorage.setItem("ami_install_later", String(Date.now() + 7 * 864e5)); } catch (_) {} installPaint(); };
+installPaint();
+
+// Security: sign out automatically after 60 minutes without use
+const IDLE_MIN = 60;
+function touchActive(){ try { localStorage.setItem("ami_last_active", String(Date.now())); } catch (_) {} }
+async function idleCheck(){
+  let last = 0; try { last = Number(localStorage.getItem("ami_last_active") || 0); } catch (_) {}
+  if (last && Date.now() - last > IDLE_MIN * 60000) {
+    try { localStorage.removeItem("ami_last_active"); } catch (_) {}
+    const { data: { session } } = await sb.auth.getSession();
+    if (session) { await sb.auth.signOut(); me = null; $("trialBadge").classList.add("hidden"); show("vEmail"); $("emailErr").textContent = "You were signed out after 60 minutes without use. Sign in again."; return true; }
+  }
+  touchActive(); return false;
+}
+let lastTouch = 0;
+["click","keydown","touchstart","scroll"].forEach(ev => document.addEventListener(ev, () => { if (Date.now() - lastTouch > 30000) { lastTouch = Date.now(); idleCheck(); } }, { passive: true }));
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") idleCheck(); });
+setInterval(idleCheck, 60000);
+
 $("signOut").onclick = async () => { await sb.auth.signOut(); me = null; show("vEmail"); $("trialBadge").classList.add("hidden"); };
 
 // Tabs
@@ -1215,7 +1254,7 @@ $("tourSkip").onclick = endTour;
 })();
 if (new URLSearchParams(location.search).get("signout") === "1") {
   sb.auth.signOut().finally(() => { history.replaceState(null, "", location.pathname); route(); });
-} else route();
+} else idleCheck().then(out => { if (!out) route(); });
 </script>
 </body>
 </html>

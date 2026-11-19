@@ -58,10 +58,12 @@
   <nav class="tabs hide" id="tabs">
     <button class="tab" data-v="home" aria-pressed="true">Home</button>
     <button class="tab" data-v="policies">Policies</button>
+    <button class="tab" data-v="uw">Underwriting</button>
     <button class="tab" data-v="claims">Claims</button>
     <button class="tab" data-v="payroll">Payroll</button>
     <button class="tab" data-v="reports">Reports</button>
     <button class="tab" data-v="treaty">Africa Re</button>
+    <button class="tab" data-v="team">Team</button>
   </nav>
 </header>
 
@@ -109,6 +111,12 @@
         <label>Paid by<select id="p_method"><option value="bank">Bank</option><option value="cash">Cash</option><option value="momo">Mobile money</option></select></label>
         <label>Facultative confirmed<select id="p_fac"><option value="">No</option><option value="1">Yes</option></select></label>
       </div>
+      <div class="card" style="background:var(--navy)">
+        <div class="row" style="justify-content:space-between"><b>Vehicles / items insured</b><button class="btn ghost" id="it_add" type="button" style="min-height:38px">+ Add item</button></div>
+        <p class="note">One line per vehicle, machine or location. Premium and sum insured add up automatically.</p>
+        <div id="items"></div>
+      </div>
+      <label style="flex-direction:row;align-items:center;gap:8px"><input type="checkbox" id="p_docs" style="width:22px;min-height:22px"> Documents received and checked (claims allowed 15 days after this)</label>
       <button class="btn" id="p_save">Issue policy</button>
     </details>
     <details class="card"><summary>Receive premium</summary>
@@ -194,6 +202,41 @@
     </div>
   </section>
 
+  <!-- Underwriting -->
+  <section id="v-uw" class="hide" style="display:flex;flex-direction:column;gap:14px">
+    <div class="card"><h2>Waiting for approval or documents</h2>
+      <p class="note">Referred risks need an underwriter's decision before they go on the books. Policies without checked documents cannot claim yet.</p>
+      <div class="tablewrap" id="t_uw"></div></div>
+    <div class="card"><h2>Who can approve what</h2>
+      <div class="tablewrap"><table><thead><tr><th>Person</th><th>May issue without referral</th></tr></thead><tbody>
+      <tr><td>Platinum Go / sales</td><td>Motor third party on the tariff. Everything else is referred.</td></tr>
+      <tr><td>Amos K. Sheriff — Technical Operations</td><td>Up to USD 250,000 per risk</td></tr>
+      <tr><td>Hanan — General Manager</td><td>Up to USD 1,000,000 per risk; motor comprehensive over 100,000; vehicles over 10 years</td></tr>
+      <tr><td>Chairman</td><td>Above USD 1,000,000 (facultative first); bonds</td></tr>
+      </tbody></table></div></div>
+  </section>
+
+  <!-- Team -->
+  <section id="v-team" class="hide" style="display:flex;flex-direction:column;gap:14px">
+    <div class="card"><h2>Who has access</h2><div class="tablewrap" id="t_users"></div></div>
+    <div class="card"><h2>Add or change a person</h2>
+      <div class="grid">
+        <label>Email<input id="u_email" type="email"></label>
+        <label>Name<input id="u_name"></label>
+        <label>Title<input id="u_title" placeholder="e.g. Sales officer"></label>
+        <label>Role<select id="u_role">
+          <option value="sales">Sales — issue policies, take premium, print</option>
+          <option value="underwriter">Underwriter — approve referred risks</option>
+          <option value="accountant">Accountant — everything except team</option>
+          <option value="viewer">Viewer — look only</option>
+          <option value="admin">Admin — everything</option></select></label>
+        <label>Approval limit (USD)<input id="u_limit" inputmode="decimal" placeholder="e.g. 250000"></label>
+      </div>
+      <p class="note">They sign in at this page with their own email. They need an AMI sign-in first — ask me to set one up if they don't have one.</p>
+      <button class="btn" id="u_save">Save</button>
+    </div>
+  </section>
+
   <!-- Treaty -->
   <section id="v-treaty" class="hide" style="display:flex;flex-direction:column;gap:14px">
     <div class="card"><h2>Africa Re 2027 — treaty sections</h2><p class="note">Terms from Africa Re's offer (14 Nov 2026), not yet bound. Will be replaced with the signed slip.</p><div class="tablewrap" id="t_treaty"></div></div>
@@ -259,7 +302,9 @@ $("verify").onclick = async () => {
   start();
 };
 
-const views = { home: loadHome, policies: loadPolicies, claims: loadClaims, payroll: loadPayroll, reports: loadReport, treaty: loadTreaty };
+const views = { home: loadHome, policies: loadPolicies, uw: loadUW, claims: loadClaims, payroll: loadPayroll, reports: loadReport, treaty: loadTreaty, team: loadTeam };
+let ME = null;
+const printBtn = (no) => `<a class="btn ghost" style="min-height:34px;display:inline-flex;align-items:center;text-decoration:none;font-size:13px" href="print.html?no=${encodeURIComponent(no)}" target="_blank">Print</a>`;
 function show(v) {
   document.querySelectorAll(".tab").forEach((t) => t.setAttribute("aria-pressed", t.dataset.v === v));
   document.querySelectorAll("main > section").forEach((s) => s.classList.add("hide"));
@@ -269,12 +314,18 @@ function show(v) {
 document.querySelectorAll(".tab").forEach((t) => (t.onclick = () => show(t.dataset.v)));
 
 async function loadHome() {
-  const { d, me } = await api({ action: "dashboard" });
-  $("who").innerHTML = `${me.name || me.email}<br>${me.role}`;
+  const { d, me, sales } = await api({ action: "dashboard" });
+  $("who").innerHTML = `${me.name || me.email}<br>${me.title || me.role}`;
+  if (sales) {
+    $("kpis").innerHTML = [["My policies", d.my_policies], ["My premium written", money(d.my_premium)], ["Waiting for approval", d.my_referred], ["Not yet paid", d.my_unpaid]]
+      .map(([l, v]) => `<div class="kpi"><div class="l">${l}</div><div class="v">${v}</div></div>`).join("");
+    document.querySelector("#v-home .card").classList.add("hide");
+    return;
+  }
   const k = [
     ["Premium written", money(d.gwp)], ["Result so far", money(d.result)], ["Premium owed to us", money(d.receivable)],
     ["Cash and bank", money(d.cash)], ["Unearned premium", money(d.upr)], ["Claims reserve", money(d.claims_reserve)],
-    ["Owed to Africa Re", money(d.africa_re_payable)], ["Policies", d.policies + " (" + d.active + " paid up)"],
+    ["Owed to Africa Re", money(d.africa_re_payable)], ["Policies", d.policies + " (" + d.active + " paid up)"], ["Waiting for approval", d.referred],
     ["Open claims", d.open_claims], ["Open quotations", d.open_quotes],
     ["Kept by Platinum", d.retained_pct === null ? "—" : (d.retained_pct * 100).toFixed(1) + "%"], ["Books start", d.books_start || "—"],
   ];
@@ -287,17 +338,22 @@ async function loadPolicies() {
   $("p_class").innerHTML = cls.map((c) => `<option value="${c.code}" ${c.blocked ? "disabled" : ""}>${c.name}${c.blocked ? " (blocked)" : ""}</option>`).join("");
   $("polnos").innerHTML = pol.map((p) => `<option value="${p.policy_no}">${p.holder || ""}</option>`).join("");
   $("clients").innerHTML = [...new Set(pol.map((p) => p.holder).filter(Boolean))].map((h) => `<option value="${h}">`).join("");
-  table("t_policies", pol, { hide: ["id", "class_code", "tax", "policy_fee", "source"] });
+  table("t_policies", pol, { hide: ["id", "class_code", "tax", "policy_fee", "source"], extra: (r) => printBtn(r.policy_no) });
 }
 $("p_start").onchange = () => { const s = new Date($("p_start").value); if (!isNaN(s)) { s.setFullYear(s.getFullYear() + 1); s.setDate(s.getDate() - 1); $("p_end").value = s.toISOString().slice(0, 10); } };
 $("p_save").onclick = async () => {
   try {
     const p = { class_code: $("p_class").value, holder: $("p_holder").value.trim(), phone: $("p_phone").value.trim(), start_date: $("p_start").value, end_date: $("p_end").value,
       sum_insured: $("p_si").value, gross_premium: $("p_prem").value, tax: $("p_tax").value, policy_fee: $("p_fee").value,
-      commission_pct: $("p_comm").value ? Number($("p_comm").value) / 100 : 0, paid: $("p_paid").value, method: $("p_method").value, fac_confirmed: !!$("p_fac").value };
+      commission_pct: $("p_comm").value ? Number($("p_comm").value) / 100 : 0, paid: $("p_paid").value, method: $("p_method").value, fac_confirmed: !!$("p_fac").value,
+      items: readItems(), docs_verified: $("p_docs").checked };
     const r = await api({ action: "create_policy", p });
-    say(`Policy ${r.policy.policy_no} issued · ${r.policy.status === "active" ? "paid up, cover active" : "waiting for payment (no premium, no cover)"} · Africa Re share ${(r.policy.ceded_pct * 100).toFixed(1)}%`);
+    const pp = r.policy;
+    if (pp.uw_status === "referred") say(`Policy ${pp.policy_no} sent to ${pp.referred_to} for approval — ${pp.referral_reason}`);
+    else say(`Policy ${pp.policy_no} issued · ${pp.status === "active" ? "paid up, cover active" : "waiting for payment (no premium, no cover)"} · Africa Re share ${(Number(pp.ceded_pct) * 100).toFixed(1)}%`);
+    if (pp.uw_status !== "referred") window.open("print.html?no=" + encodeURIComponent(pp.policy_no), "_blank");
     ["p_holder", "p_phone", "p_si", "p_prem", "p_tax", "p_fee", "p_comm", "p_paid"].forEach((i) => ($(i).value = ""));
+    $("items").innerHTML = ""; addItem(); $("p_docs").checked = false;
     loadPolicies();
   } catch (e) { say(e.message, false); }
 };
@@ -306,6 +362,51 @@ $("r_save").onclick = async () => {
     const r = await api({ action: "add_receipt", r: { policy_no: $("r_pol").value.trim(), amount: $("r_amt").value, rdate: $("r_date").value || today(), method: $("r_method").value, ref: $("r_ref").value } });
     say(`Receipt posted · ${r.policy.policy_no} is now ${r.policy.status.replace("_", " ")}`); $("r_amt").value = ""; $("r_ref").value = ""; loadPolicies();
   } catch (e) { say(e.message, false); }
+};
+
+function addItem() {
+  const d = document.createElement("div");
+  d.className = "grid item"; d.style.cssText = "border-top:1px solid var(--line);padding-top:10px";
+  d.innerHTML = `<label>Description<input data-k="description" placeholder="e.g. Toyota Hilux pick-up"></label>
+    <label>Plate no.<input data-k="plate_no"></label><label>Chassis / VIN<input data-k="chassis_vin"></label>
+    <label>Make / model<input data-k="make_model"></label><label>Year<input data-k="year" inputmode="numeric"></label>
+    <label>Use / tariff category<input data-k="use_category" placeholder="e.g. Private car — jeep"></label>
+    <label>Location (property)<input data-k="location"></label>
+    <label>Sum insured (USD)<input data-k="sum_insured" inputmode="decimal"></label><label>Premium (USD)<input data-k="premium" inputmode="decimal"></label>`;
+  d.querySelectorAll('[data-k="premium"],[data-k="sum_insured"]').forEach((i) => (i.oninput = sumItems));
+  $("items").appendChild(d);
+}
+function readItems() { return [...document.querySelectorAll("#items .item")].map((d) => { const o = {}; d.querySelectorAll("[data-k]").forEach((i) => (o[i.dataset.k] = i.value.trim())); return o; }); }
+function sumItems() {
+  const it = readItems(); const pr = it.reduce((s, i) => s + (Number(i.premium) || 0), 0); const si = it.reduce((s, i) => s + (Number(i.sum_insured) || 0), 0);
+  if (pr) $("p_prem").value = pr.toFixed(2); if (si) $("p_si").value = si.toFixed(2);
+}
+$("it_add").onclick = addItem; addItem();
+
+async function loadUW() {
+  const rows = await list("uw_queue");
+  const canDecide = ME && ["admin", "underwriter"].includes(ME.role);
+  table("t_uw", rows, { hide: ["id"], extra: (r) => {
+    let h = printBtn(r.policy_no) + " ";
+    if (r.uw_status === "referred" && canDecide) h += `<button class="btn" style="min-height:34px" data-ok="${r.policy_no}">Approve</button> <button class="btn ghost" style="min-height:34px" data-no="${r.policy_no}">Decline</button>`;
+    if (r.uw_status === "approved" && !r.docs_verified_at) h += `<button class="btn" style="min-height:34px" data-doc="${r.policy_no}">Documents checked</button>`;
+    return `<span class="row" style="flex-wrap:nowrap">${h}</span>`; } });
+  document.querySelectorAll("[data-ok]").forEach((b) => (b.onclick = async () => {
+    try { let fac = false; if (!confirm("Approve " + b.dataset.ok + "? It goes on the books now.")) return;
+      await api({ action: "uw_decide", policy_no: b.dataset.ok, decision: "approve", fac_confirmed: fac }); say(b.dataset.ok + " approved"); loadUW(); } catch (e) { say(e.message, false); } }));
+  document.querySelectorAll("[data-no]").forEach((b) => (b.onclick = async () => {
+    const reason = prompt("Reason for declining " + b.dataset.no + "?"); if (reason === null) return;
+    try { await api({ action: "uw_decide", policy_no: b.dataset.no, decision: "decline", reason }); say(b.dataset.no + " declined"); loadUW(); } catch (e) { say(e.message, false); } }));
+  document.querySelectorAll("[data-doc]").forEach((b) => (b.onclick = async () => {
+    try { const r = await api({ action: "verify_docs", policy_no: b.dataset.doc }); say(`Documents checked · claims accepted for losses from ${String(r.claims_from).slice(0, 10)}`); loadUW(); } catch (e) { say(e.message, false); } }));
+}
+
+async function loadTeam() {
+  table("t_users", await list("users"));
+}
+$("u_save").onclick = async () => {
+  try { await api({ action: "add_user", u: { email: $("u_email").value.trim(), name: $("u_name").value.trim(), title: $("u_title").value.trim(), role: $("u_role").value, authority_limit: $("u_limit").value } });
+    say("Saved"); ["u_email", "u_name", "u_title", "u_limit"].forEach((i) => ($(i).value = "")); loadTeam(); } catch (e) { say(e.message, false); }
 };
 
 async function loadClaims() {
@@ -368,8 +469,11 @@ async function start() {
   try {
     const { data: { session } } = await sb.auth.getSession();
     if (!session) return showLogin();
-    await api({ action: "me" });
+    ME = (await api({ action: "me" })).me;
     $("v-login").classList.add("hide"); $("tabs").classList.remove("hide");
+    const allowed = { admin: null, accountant: ["home","policies","uw","claims","payroll","reports","treaty"], underwriter: ["home","policies","uw","claims","reports","treaty"],
+      sales: ["home","policies","uw"], viewer: ["home","policies","uw","claims","reports","treaty"] }[ME.role];
+    if (allowed) document.querySelectorAll(".tab").forEach((t) => { if (!allowed.includes(t.dataset.v)) t.classList.add("hide"); });
     ["me_date", "r_date", "c_loss", "m_date", "pr_date", "p_start"].forEach((i) => ($(i).value = today()));
     $("p_start").onchange();
     show("home");

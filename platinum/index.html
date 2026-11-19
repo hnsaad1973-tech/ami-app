@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Platinum Insurers — Accounts</title>
+<meta name="theme-color" content="#0B1B33">
+<link rel="icon" href="../icon-192.png">
+<link rel="apple-touch-icon" href="../icon-180.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
+<style>
+  :root{--navy:#0B1B33;--card:#13284A;--line:#1F355C;--edge:#2B4470;--gold:#D4A84B;--text:#F5F1E6;--soft:#C9D2E0;--muted:#A9B4C6;--red:#E57373;--green:#7BC47F}
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--navy);color:var(--text);font-family:Inter,system-ui,sans-serif}
+  button,input,select,textarea{font-family:inherit}
+  header{position:sticky;top:0;z-index:5;background:var(--navy);padding:14px 14px 0;padding-top:max(14px,env(safe-area-inset-top))}
+  .top{display:flex;align-items:center;justify-content:space-between;gap:10px}
+  .logo{font-family:'Space Grotesk',Inter,sans-serif;font-weight:700;font-size:20px;letter-spacing:2px;color:var(--gold)}
+  .sub{font-size:11px;color:var(--muted)}
+  .who{font-size:12px;color:var(--muted);text-align:right}
+  .tabs{display:flex;gap:6px;padding:10px 0 12px;border-bottom:1px solid var(--line);overflow-x:auto}
+  .tab{flex-shrink:0;min-height:38px;padding:0 13px;border-radius:999px;border:1px solid var(--edge);background:transparent;color:var(--soft);font-size:13px;font-weight:600;cursor:pointer}
+  .tab[aria-pressed="true"]{background:var(--gold);border-color:var(--gold);color:var(--navy)}
+  main{padding:14px;max-width:1100px;margin:0 auto;display:flex;flex-direction:column;gap:14px;padding-bottom:60px}
+  h2{font-family:'Space Grotesk',Inter,sans-serif;font-size:19px;margin:0}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:10px}
+  .kpis{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+  .kpi{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px}
+  .kpi .v{font-size:20px;font-weight:700;margin-top:4px}
+  .kpi .l{font-size:12px;color:var(--muted)}
+  label{font-size:12px;font-weight:600;color:var(--soft);display:flex;flex-direction:column;gap:4px}
+  input,select,textarea{width:100%;min-height:44px;padding:0 12px;border-radius:10px;border:1px solid var(--edge);background:var(--navy);color:var(--text);font-size:16px}
+  textarea{padding:10px 12px;min-height:70px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px}
+  .btn{min-height:46px;border:none;border-radius:10px;background:var(--gold);color:var(--navy);font-size:15px;font-weight:700;cursor:pointer;padding:0 16px}
+  .btn.ghost{background:transparent;border:1px solid var(--gold);color:var(--gold)}
+  .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:10px}
+  table{border-collapse:collapse;width:100%;font-size:13px}
+  th,td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}
+  th{color:var(--muted);font-weight:600;background:#0F2240;position:sticky;top:0}
+  td.n{text-align:right;font-variant-numeric:tabular-nums}
+  .msg{font-size:14px;padding:10px 12px;border-radius:10px;display:none}
+  .msg.ok{display:block;background:#173B2A;color:var(--green)}
+  .msg.err{display:block;background:#3B1C1C;color:var(--red)}
+  .note{font-size:12px;color:var(--muted)}
+  .hide{display:none!important}
+  details summary{cursor:pointer;font-weight:700;color:var(--gold)}
+</style>
+</head>
+<body>
+<header>
+  <div class="top">
+    <div><div class="logo">PLATINUM</div><div class="sub">Insurers, Inc. · Accounts · Test</div></div>
+    <div class="who" id="who"></div>
+  </div>
+  <nav class="tabs hide" id="tabs">
+    <button class="tab" data-v="home" aria-pressed="true">Home</button>
+    <button class="tab" data-v="policies">Policies</button>
+    <button class="tab" data-v="claims">Claims</button>
+    <button class="tab" data-v="payroll">Payroll</button>
+    <button class="tab" data-v="reports">Reports</button>
+    <button class="tab" data-v="treaty">Africa Re</button>
+  </nav>
+</header>
+
+<main>
+  <div id="msg" class="msg"></div>
+
+  <!-- Sign in -->
+  <section id="v-login" class="card hide">
+    <h2>Sign in</h2>
+    <p class="note">Use the same email as AMI. We send you a 6-digit code.</p>
+    <label>Email<input id="em" type="email" autocomplete="email"></label>
+    <button class="btn" id="sendcode">Send code</button>
+    <div id="codebox" class="hide" style="display:flex;flex-direction:column;gap:10px">
+      <label>Code<input id="code" inputmode="numeric" maxlength="6"></label>
+      <button class="btn" id="verify">Sign in</button>
+    </div>
+  </section>
+
+  <!-- Home -->
+  <section id="v-home" class="hide">
+    <div class="kpis" id="kpis"></div>
+    <div class="card" style="margin-top:14px">
+      <h2>Month end</h2>
+      <p class="note">Works out unearned premium for the gross book and Africa Re's share. Run it on the last day of each month.</p>
+      <div class="row"><label style="flex:1">Month-end date<input type="date" id="me_date"></label>
+      <button class="btn" id="me_run" style="align-self:flex-end">Run month end</button></div>
+    </div>
+  </section>
+
+  <!-- Policies -->
+  <section id="v-policies" class="hide" style="display:flex;flex-direction:column;gap:14px">
+    <details class="card"><summary>New policy</summary>
+      <div class="grid">
+        <label>Class<select id="p_class"></select></label>
+        <label>Client<input id="p_holder" list="clients"></label>
+        <label>Phone<input id="p_phone" inputmode="tel"></label>
+        <label>Start<input type="date" id="p_start"></label>
+        <label>End<input type="date" id="p_end"></label>
+        <label>Sum insured (USD)<input id="p_si" inputmode="decimal"></label>
+        <label>Premium (USD)<input id="p_prem" inputmode="decimal"></label>
+        <label>Tax (USD)<input id="p_tax" inputmode="decimal"></label>
+        <label>Policy fee / sticker (USD)<input id="p_fee" inputmode="decimal"></label>
+        <label>Broker commission %<input id="p_comm" inputmode="decimal" placeholder="e.g. 10"></label>
+        <label>Paid now (USD)<input id="p_paid" inputmode="decimal"></label>
+        <label>Paid by<select id="p_method"><option value="bank">Bank</option><option value="cash">Cash</option><option value="momo">Mobile money</option></select></label>
+        <label>Facultative confirmed<select id="p_fac"><option value="">No</option><option value="1">Yes</option></select></label>
+      </div>
+      <button class="btn" id="p_save">Issue policy</button>
+    </details>
+    <details class="card"><summary>Receive premium</summary>
+      <div class="grid">
+        <label>Policy no.<input id="r_pol" list="polnos"></label>
+        <label>Amount (USD)<input id="r_amt" inputmode="decimal"></label>
+        <label>Date<input type="date" id="r_date"></label>
+        <label>Paid by<select id="r_method"><option value="bank">Bank</option><option value="cash">Cash</option><option value="momo">Mobile money</option></select></label>
+        <label>Reference<input id="r_ref"></label>
+      </div>
+      <button class="btn" id="r_save">Post receipt</button>
+    </details>
+    <div class="card"><h2>Policies</h2><div class="tablewrap" id="t_policies"></div></div>
+  </section>
+
+  <!-- Claims -->
+  <section id="v-claims" class="hide" style="display:flex;flex-direction:column;gap:14px">
+    <details class="card"><summary>New claim</summary>
+      <div class="grid">
+        <label>Policy no.<input id="c_pol" list="polnos"></label>
+        <label>Date of loss<input type="date" id="c_loss"></label>
+        <label>First reserve (USD)<input id="c_res" inputmode="decimal"></label>
+      </div>
+      <label>What happened<textarea id="c_desc"></textarea></label>
+      <button class="btn" id="c_save">Open claim</button>
+    </details>
+    <details class="card"><summary>Update a claim</summary>
+      <div class="grid">
+        <label>Claim no.<input id="m_clm" list="clmnos"></label>
+        <label>Type<select id="m_kind"><option value="reserve">New reserve (total still to pay)</option><option value="payment">Payment</option><option value="salvage">Salvage / recovery</option></select></label>
+        <label>Amount (USD)<input id="m_amt" inputmode="decimal"></label>
+        <label>Date<input type="date" id="m_date"></label>
+        <label>Close claim<select id="m_close"><option value="">No</option><option value="1">Yes</option></select></label>
+      </div>
+      <button class="btn" id="m_save">Post</button>
+    </details>
+    <div class="card"><h2>Claims</h2><div class="tablewrap" id="t_claims"></div></div>
+  </section>
+
+  <!-- Payroll -->
+  <section id="v-payroll" class="hide" style="display:flex;flex-direction:column;gap:14px">
+    <div class="card"><h2>Staff</h2><p class="note">Change a salary and tap Save on that row.</p><div class="tablewrap" id="t_staff"></div>
+      <details><summary>Add staff</summary>
+        <div class="grid" style="margin-top:10px">
+          <label>Name<input id="s_name"></label><label>Position<input id="s_pos"></label>
+          <label>Monthly salary (USD)<input id="s_sal" inputmode="decimal"></label><label>Allowances (USD)<input id="s_all" inputmode="decimal"></label>
+        </div><button class="btn" id="s_add" style="margin-top:10px">Add</button>
+      </details>
+    </div>
+    <div class="card"><h2>Run payroll</h2>
+      <p class="note">Deducts PAYE (LRA bands) and NASSCORP 4% staff / 6% company, and posts to the books.</p>
+      <div class="grid">
+        <label>Month (YYYY-MM)<input id="pr_period" placeholder="2026-11"></label>
+        <label>Pay date<input type="date" id="pr_date"></label>
+        <label>USD → LRD rate<input id="pr_fx" inputmode="decimal" placeholder="e.g. 180"></label>
+      </div>
+      <button class="btn" id="pr_run">Run payroll</button>
+    </div>
+    <div class="card"><h2>Payslips</h2><div class="tablewrap" id="t_payroll"></div></div>
+  </section>
+
+  <!-- Reports -->
+  <section id="v-reports" class="hide" class="card">
+    <div class="card">
+      <div class="row">
+        <select id="rep" style="flex:1">
+          <option value="tb">Trial balance</option>
+          <option value="pnl">Profit & loss by month</option>
+          <option value="debtors">Who owes premium</option>
+          <option value="receipts">Receipts</option>
+          <option value="journals">Journal entries</option>
+          <option value="africa_re">Africa Re quarterly statement</option>
+          <option value="prem_bdx">Premium bordereau</option>
+          <option value="clm_bdx">Claims bordereau</option>
+          <option value="retention">Retention (CBL 20%)</option>
+          <option value="quotations">Quotations</option>
+          <option value="banks">Bank accounts</option>
+          <option value="shareholders">Shareholders</option>
+        </select>
+        <button class="btn ghost" id="rep_csv">Download CSV</button>
+      </div>
+      <div class="tablewrap" id="t_rep"></div>
+    </div>
+  </section>
+
+  <!-- Treaty -->
+  <section id="v-treaty" class="hide" style="display:flex;flex-direction:column;gap:14px">
+    <div class="card"><h2>Africa Re 2027 — treaty sections</h2><p class="note">Terms from Africa Re's offer (14 Nov 2026), not yet bound. Will be replaced with the signed slip.</p><div class="tablewrap" id="t_treaty"></div></div>
+    <div class="card"><h2>Excess of loss covers</h2><div class="tablewrap" id="t_xl"></div></div>
+    <div class="card"><h2>Products and treaty section</h2><div class="tablewrap" id="t_classes"></div></div>
+  </section>
+
+  <datalist id="clients"></datalist><datalist id="polnos"></datalist><datalist id="clmnos"></datalist>
+</main>
+
+<script type="module">
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+const SB_URL = "https://xxdqrvcpxhsepwzfmnjs.supabase.co";
+const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh4ZHFydmNweGhzZXB3emZtbmpzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQ2MTQxNzQsImV4cCI6MjExMDE5MDE3NH0.ZjN4PXCs7IilwaO16o6kg1Bu1K66V_vfoUILHMjgGBU";
+const sb = createClient(SB_URL, SB_KEY);
+const $ = (id) => document.getElementById(id);
+const today = () => new Date().toISOString().slice(0, 10);
+let lastRows = [];
+
+function say(t, ok = true) { const m = $("msg"); m.textContent = t; m.className = "msg " + (ok ? "ok" : "err"); window.scrollTo({ top: 0, behavior: "smooth" }); if (ok) setTimeout(() => (m.className = "msg"), 6000); }
+const money = (v) => v === null || v === undefined || v === "" ? "" : Number(v).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const isNum = (k, v) => v !== null && v !== "" && !isNaN(v) && typeof v !== "boolean" && !/(_no|code|phone|period|quarter|yr|id|last4|certificate)$/i.test(k) && !/date/i.test(k);
+const label = (k) => k.replace(/_/g, " ").replace(/\bpct\b/, "%").replace(/^./, (c) => c.toUpperCase());
+
+async function api(body) {
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) { showLogin(); throw new Error("Please sign in"); }
+  const r = await fetch(SB_URL + "/functions/v1/plat", { method: "POST", headers: { "Content-Type": "application/json", Authorization: "Bearer " + session.access_token, apikey: SB_KEY }, body: JSON.stringify(body) });
+  const j = await r.json().catch(() => ({ error: "Server error" }));
+  if (!r.ok || j.error) throw new Error(j.error || "Error " + r.status);
+  return j;
+}
+const list = async (name) => (await api({ action: "list", name })).rows;
+
+function table(el, rows, opts = {}) {
+  const box = typeof el === "string" ? $(el) : el;
+  if (!rows.length) { box.innerHTML = '<p class="note" style="padding:12px">Nothing yet.</p>'; return; }
+  const cols = Object.keys(rows[0]).filter((c) => !(opts.hide || []).includes(c));
+  let h = "<table><thead><tr>" + cols.map((c) => `<th>${label(c)}</th>`).join("") + (opts.extra ? "<th></th>" : "") + "</tr></thead><tbody>";
+  for (const r of rows) {
+    h += "<tr>" + cols.map((c) => {
+      const v = r[c];
+      if (/_pct$/.test(c) && v !== null && v !== "") return `<td class="n">${(Number(v) * 100).toFixed(1)}%</td>`;
+      if (isNum(c, v)) return `<td class="n">${money(v)}</td>`;
+      if (typeof v === "boolean") return `<td>${v ? "Yes" : "No"}</td>`;
+      return `<td>${v === null || v === undefined ? "" : String(v).replace(/</g, "&lt;").slice(0, 120)}</td>`;
+    }).join("") + (opts.extra ? `<td>${opts.extra(r)}</td>` : "") + "</tr>";
+  }
+  box.innerHTML = h + "</tbody></table>";
+}
+
+function showLogin() { $("v-login").classList.remove("hide"); $("tabs").classList.add("hide"); document.querySelectorAll("main > section:not(#v-login)").forEach((s) => s.classList.add("hide")); }
+
+$("sendcode").onclick = async () => {
+  const email = $("em").value.trim(); if (!email) return;
+  const { error } = await sb.auth.signInWithOtp({ email, options: { shouldCreateUser: false } });
+  if (error) return say(error.message, false);
+  $("codebox").classList.remove("hide"); say("Code sent to " + email);
+};
+$("verify").onclick = async () => {
+  const { error } = await sb.auth.verifyOtp({ email: $("em").value.trim(), token: $("code").value.trim(), type: "email" });
+  if (error) return say(error.message, false);
+  start();
+};
+
+const views = { home: loadHome, policies: loadPolicies, claims: loadClaims, payroll: loadPayroll, reports: loadReport, treaty: loadTreaty };
+function show(v) {
+  document.querySelectorAll(".tab").forEach((t) => t.setAttribute("aria-pressed", t.dataset.v === v));
+  document.querySelectorAll("main > section").forEach((s) => s.classList.add("hide"));
+  $("v-" + v).classList.remove("hide");
+  views[v]().catch((e) => say(e.message, false));
+}
+document.querySelectorAll(".tab").forEach((t) => (t.onclick = () => show(t.dataset.v)));
+
+async function loadHome() {
+  const { d, me } = await api({ action: "dashboard" });
+  $("who").innerHTML = `${me.name || me.email}<br>${me.role}`;
+  const k = [
+    ["Premium written", money(d.gwp)], ["Result so far", money(d.result)], ["Premium owed to us", money(d.receivable)],
+    ["Cash and bank", money(d.cash)], ["Unearned premium", money(d.upr)], ["Claims reserve", money(d.claims_reserve)],
+    ["Owed to Africa Re", money(d.africa_re_payable)], ["Policies", d.policies + " (" + d.active + " paid up)"],
+    ["Open claims", d.open_claims], ["Open quotations", d.open_quotes],
+    ["Kept by Platinum", d.retained_pct === null ? "—" : (d.retained_pct * 100).toFixed(1) + "%"], ["Books start", d.books_start || "—"],
+  ];
+  $("kpis").innerHTML = k.map(([l, v]) => `<div class="kpi"><div class="l">${l}</div><div class="v">${v}</div></div>`).join("");
+}
+$("me_run").onclick = async () => { try { await api({ action: "month_end", date: $("me_date").value }); say("Month end posted"); loadHome(); } catch (e) { say(e.message, false); } };
+
+async function loadPolicies() {
+  const [pol, cls] = await Promise.all([list("policies"), list("classes")]);
+  $("p_class").innerHTML = cls.map((c) => `<option value="${c.code}" ${c.blocked ? "disabled" : ""}>${c.name}${c.blocked ? " (blocked)" : ""}</option>`).join("");
+  $("polnos").innerHTML = pol.map((p) => `<option value="${p.policy_no}">${p.holder || ""}</option>`).join("");
+  $("clients").innerHTML = [...new Set(pol.map((p) => p.holder).filter(Boolean))].map((h) => `<option value="${h}">`).join("");
+  table("t_policies", pol, { hide: ["id", "class_code", "tax", "policy_fee", "source"] });
+}
+$("p_start").onchange = () => { const s = new Date($("p_start").value); if (!isNaN(s)) { s.setFullYear(s.getFullYear() + 1); s.setDate(s.getDate() - 1); $("p_end").value = s.toISOString().slice(0, 10); } };
+$("p_save").onclick = async () => {
+  try {
+    const p = { class_code: $("p_class").value, holder: $("p_holder").value.trim(), phone: $("p_phone").value.trim(), start_date: $("p_start").value, end_date: $("p_end").value,
+      sum_insured: $("p_si").value, gross_premium: $("p_prem").value, tax: $("p_tax").value, policy_fee: $("p_fee").value,
+      commission_pct: $("p_comm").value ? Number($("p_comm").value) / 100 : 0, paid: $("p_paid").value, method: $("p_method").value, fac_confirmed: !!$("p_fac").value };
+    const r = await api({ action: "create_policy", p });
+    say(`Policy ${r.policy.policy_no} issued · ${r.policy.status === "active" ? "paid up, cover active" : "waiting for payment (no premium, no cover)"} · Africa Re share ${(r.policy.ceded_pct * 100).toFixed(1)}%`);
+    ["p_holder", "p_phone", "p_si", "p_prem", "p_tax", "p_fee", "p_comm", "p_paid"].forEach((i) => ($(i).value = ""));
+    loadPolicies();
+  } catch (e) { say(e.message, false); }
+};
+$("r_save").onclick = async () => {
+  try {
+    const r = await api({ action: "add_receipt", r: { policy_no: $("r_pol").value.trim(), amount: $("r_amt").value, rdate: $("r_date").value || today(), method: $("r_method").value, ref: $("r_ref").value } });
+    say(`Receipt posted · ${r.policy.policy_no} is now ${r.policy.status.replace("_", " ")}`); $("r_amt").value = ""; $("r_ref").value = ""; loadPolicies();
+  } catch (e) { say(e.message, false); }
+};
+
+async function loadClaims() {
+  const [cl, pol] = await Promise.all([list("claims"), list("policies")]);
+  $("polnos").innerHTML = pol.map((p) => `<option value="${p.policy_no}">${p.holder || ""}</option>`).join("");
+  $("clmnos").innerHTML = cl.map((c) => `<option value="${c.claim_no}">${c.holder || ""}</option>`).join("");
+  table("t_claims", cl, { hide: ["id"] });
+}
+$("c_save").onclick = async () => {
+  try { const r = await api({ action: "create_claim", c: { policy_no: $("c_pol").value.trim(), loss_date: $("c_loss").value, description: $("c_desc").value, reserve: $("c_res").value } });
+    say("Claim " + r.claim.claim_no + " opened"); $("c_desc").value = ""; $("c_res").value = ""; loadClaims(); } catch (e) { say(e.message, false); }
+};
+$("m_save").onclick = async () => {
+  try { await api({ action: "claim_move", m: { claim_no: $("m_clm").value.trim(), kind: $("m_kind").value, amount: $("m_amt").value, mdate: $("m_date").value || today(), close: !!$("m_close").value } });
+    say("Claim updated"); $("m_amt").value = ""; loadClaims(); } catch (e) { say(e.message, false); }
+};
+
+async function loadPayroll() {
+  const [st, ps] = await Promise.all([list("staff"), list("payroll")]);
+  table("t_staff", st.map((s) => ({ ...s, basic_salary: s.basic_salary ?? "" })), {
+    hide: ["id", "department", "currency", "basic_salary", "allowances", "active"],
+    extra: (s) => `<span class="row" style="flex-wrap:nowrap"><input style="width:100px;min-height:36px" id="sal_${s.id}" value="${s.basic_salary ?? ""}" inputmode="decimal" placeholder="Salary">
+      <input style="width:90px;min-height:36px" id="all_${s.id}" value="${s.allowances ?? 0}" inputmode="decimal" placeholder="Allow.">
+      <select style="width:90px;min-height:36px" id="act_${s.id}"><option value="1" ${s.active ? "selected" : ""}>Active</option><option value="" ${s.active ? "" : "selected"}>Left</option></select>
+      <button class="btn" style="min-height:36px" data-save="${s.id}" data-name="${encodeURIComponent(s.name)}" data-pos="${encodeURIComponent(s.position || "")}">Save</button></span>`,
+  });
+  document.querySelectorAll("[data-save]").forEach((b) => (b.onclick = async () => {
+    const id = b.dataset.save;
+    try { await api({ action: "update_staff", s: { id: Number(id), name: decodeURIComponent(b.dataset.name), position: decodeURIComponent(b.dataset.pos), basic_salary: $("sal_" + id).value, allowances: $("all_" + id).value, active: !!$("act_" + id).value } });
+      say("Saved"); loadPayroll(); } catch (e) { say(e.message, false); }
+  }));
+  table("t_payroll", ps);
+}
+$("s_add").onclick = async () => {
+  try { await api({ action: "update_staff", s: { name: $("s_name").value.trim(), position: $("s_pos").value.trim(), basic_salary: $("s_sal").value, allowances: $("s_all").value } });
+    say("Staff added"); ["s_name", "s_pos", "s_sal", "s_all"].forEach((i) => ($(i).value = "")); loadPayroll(); } catch (e) { say(e.message, false); }
+};
+$("pr_run").onclick = async () => {
+  try { await api({ action: "run_payroll", period: $("pr_period").value.trim(), run_date: $("pr_date").value, fx: $("pr_fx").value }); say("Payroll posted"); loadPayroll(); } catch (e) { say(e.message, false); }
+};
+
+async function loadReport() { lastRows = await list($("rep").value); table("t_rep", lastRows); }
+$("rep").onchange = () => loadReport().catch((e) => say(e.message, false));
+$("rep_csv").onclick = () => {
+  if (!lastRows.length) return;
+  const cols = Object.keys(lastRows[0]);
+  const csv = [cols.join(",")].concat(lastRows.map((r) => cols.map((c) => `"${String(r[c] ?? "").replace(/"/g, '""')}"`).join(","))).join("\n");
+  const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
+  a.download = `platinum-${$("rep").value}-${today()}.csv`; a.click();
+};
+
+async function loadTreaty() {
+  const [t, x, c] = await Promise.all([list("treaty"), list("xl"), list("classes")]);
+  table("t_treaty", t, { hide: ["terms_source", "notes", "reinsurer"] });
+  table("t_xl", x, { hide: ["terms_source", "treaty_year"] });
+  table("t_classes", c);
+}
+
+async function start() {
+  try {
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session) return showLogin();
+    await api({ action: "me" });
+    $("v-login").classList.add("hide"); $("tabs").classList.remove("hide");
+    ["me_date", "r_date", "c_loss", "m_date", "pr_date", "p_start"].forEach((i) => ($(i).value = today()));
+    $("p_start").onchange();
+    show("home");
+  } catch (e) { say(e.message, false); showLogin(); }
+}
+start();
+</script>
+</body>
+</html>

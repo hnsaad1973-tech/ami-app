@@ -3,77 +3,80 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Platinum Insurers — Accounts</title>
+<title>Platinum Insurers</title>
 <meta name="theme-color" content="#0B1B33">
 <link rel="icon" href="../icon-192.png">
 <link rel="apple-touch-icon" href="../icon-180.png">
-<link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
 <style>
   :root{--navy:#0B1B33;--card:#13284A;--line:#1F355C;--edge:#2B4470;--gold:#D4A84B;--text:#F5F1E6;--soft:#C9D2E0;--muted:#A9B4C6;--red:#E57373;--green:#7BC47F}
   *{box-sizing:border-box}
   html,body{margin:0;background:var(--navy);color:var(--text);font-family:Inter,system-ui,sans-serif}
   button,input,select,textarea{font-family:inherit}
-  header{position:sticky;top:0;z-index:5;background:var(--navy);padding:14px 14px 0;padding-top:max(14px,env(safe-area-inset-top))}
-  .top{display:flex;align-items:center;justify-content:space-between;gap:10px}
-  .logo{font-family:'Space Grotesk',Inter,sans-serif;font-weight:700;font-size:20px;letter-spacing:2px;color:var(--gold)}
+  header{position:sticky;top:0;z-index:5;background:var(--navy);padding:12px 14px 0;padding-top:max(12px,env(safe-area-inset-top));border-bottom:1px solid var(--line)}
+  .top{display:flex;align-items:center;justify-content:space-between;gap:10px;padding-bottom:10px}
+  .logo{font-family:'Space Grotesk',Inter,sans-serif;font-weight:700;font-size:20px;letter-spacing:2px;color:var(--gold);cursor:pointer}
   .sub{font-size:11px;color:var(--muted)}
   .who{font-size:12px;color:var(--muted);text-align:right}
-  .tabs{display:flex;gap:6px;padding:10px 0 12px;border-bottom:1px solid var(--line);overflow-x:auto}
+  .who a{color:var(--gold);cursor:pointer;text-decoration:underline}
+  .tabs{display:flex;gap:6px;padding:0 0 12px;overflow-x:auto}
   .tab{flex-shrink:0;min-height:38px;padding:0 13px;border-radius:999px;border:1px solid var(--edge);background:transparent;color:var(--soft);font-size:13px;font-weight:600;cursor:pointer}
   .tab[aria-pressed="true"]{background:var(--gold);border-color:var(--gold);color:var(--navy)}
-  main{padding:14px;max-width:1100px;margin:0 auto;display:flex;flex-direction:column;gap:14px;padding-bottom:60px}
+  main{padding:14px;max-width:1150px;margin:0 auto;display:flex;flex-direction:column;gap:14px;padding-bottom:60px}
+  #view{display:flex;flex-direction:column;gap:14px}
   h2{font-family:'Space Grotesk',Inter,sans-serif;font-size:19px;margin:0}
+  h3{margin:0;font-size:15px}
   .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:10px}
+  .sections{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px}
+  .sec{background:var(--card);border:1px solid var(--edge);border-radius:16px;padding:18px;cursor:pointer;display:flex;flex-direction:column;gap:6px;text-align:left;color:var(--text)}
+  .sec:hover{border-color:var(--gold)}
+  .sec b{font-family:'Space Grotesk',Inter,sans-serif;font-size:20px;color:var(--gold)}
+  .sec span{font-size:13px;color:var(--soft);line-height:1.4}
   .kpis{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
   .kpi{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px}
   .kpi .v{font-size:20px;font-weight:700;margin-top:4px}
   .kpi .l{font-size:12px;color:var(--muted)}
+  .kpi.red .v{color:var(--red)}
   label{font-size:12px;font-weight:600;color:var(--soft);display:flex;flex-direction:column;gap:4px}
   input,select,textarea{width:100%;min-height:44px;padding:0 12px;border-radius:10px;border:1px solid var(--edge);background:var(--navy);color:var(--text);font-size:16px}
   textarea{padding:10px 12px;min-height:70px}
-  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px}
   .btn{min-height:46px;border:none;border-radius:10px;background:var(--gold);color:var(--navy);font-size:15px;font-weight:700;cursor:pointer;padding:0 16px}
   .btn.ghost{background:transparent;border:1px solid var(--gold);color:var(--gold)}
+  .btn.sm{min-height:34px;font-size:13px;padding:0 10px}
   .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
-  .tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:10px}
+  .tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:10px;max-height:70vh}
   table{border-collapse:collapse;width:100%;font-size:13px}
-  th,td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}
-  th{color:var(--muted);font-weight:600;background:#0F2240;position:sticky;top:0}
+  th,td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap;vertical-align:top}
+  td.wrap{white-space:normal;min-width:220px;max-width:420px}
+  th{color:var(--muted);font-weight:600;background:#0F2240;position:sticky;top:0;z-index:1}
   td.n{text-align:right;font-variant-numeric:tabular-nums}
-  .msg{font-size:14px;padding:10px 12px;border-radius:10px;display:none}
+  .msg{font-size:14px;padding:10px 12px;border-radius:10px;display:none;white-space:pre-line}
   .msg.ok{display:block;background:#173B2A;color:var(--green)}
   .msg.err{display:block;background:#3B1C1C;color:var(--red)}
-  .note{font-size:12px;color:var(--muted)}
+  .note{font-size:12px;color:var(--muted);margin:0;line-height:1.45}
   .hide{display:none!important}
+  .quote{background:var(--navy);border:1px solid var(--gold);border-radius:12px;padding:12px;font-size:14px;line-height:1.55}
+  .pill{display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700}
+  .pill.p{background:#3B2E10;color:var(--gold)}.pill.a{background:#173B2A;color:var(--green)}
   details summary{cursor:pointer;font-weight:700;color:var(--gold)}
 </style>
 </head>
 <body>
 <header>
   <div class="top">
-    <div><div class="logo">PLATINUM</div><div class="sub">Insurers, Inc. · Accounts · Test</div></div>
+    <div><div class="logo" id="home">PLATINUM</div><div class="sub" id="where">Insurers, Inc.</div></div>
     <div class="who" id="who"></div>
   </div>
-  <nav class="tabs hide" id="tabs">
-    <button class="tab" data-v="home" aria-pressed="true">Home</button>
-    <button class="tab" data-v="policies">Policies</button>
-    <button class="tab" data-v="uw">Underwriting</button>
-    <button class="tab" data-v="claims">Claims</button>
-    <button class="tab" data-v="payroll">Payroll</button>
-    <button class="tab" data-v="reports">Reports</button>
-    <button class="tab" data-v="treaty">Africa Re</button>
-    <button class="tab" data-v="team">Team</button>
-  </nav>
+  <nav class="tabs hide" id="tabs"></nav>
 </header>
 
 <main>
   <div id="msg" class="msg"></div>
 
-  <!-- Sign in -->
-  <section id="v-login" class="card hide">
+  <section id="login" class="card hide" style="max-width:440px;margin:30px auto;width:100%">
     <h2>Sign in</h2>
-    <p class="note">Use the same email as AMI. We send you a sign-in code.</p>
+    <p class="note">Platinum Insurers staff only. Enter your work email; we send you a sign-in code.</p>
     <label>Email<input id="em" type="email" autocomplete="email"></label>
     <button class="btn" id="sendcode">Send code</button>
     <div id="codebox" class="hide" style="display:flex;flex-direction:column;gap:10px">
@@ -82,169 +85,12 @@
     </div>
   </section>
 
-  <!-- Home -->
-  <section id="v-home" class="hide">
-    <div class="kpis" id="kpis"></div>
-    <div class="card" style="margin-top:14px">
-      <h2>Month end</h2>
-      <p class="note">Works out unearned premium for the gross book and Africa Re's share. Run it on the last day of each month.</p>
-      <div class="row"><label style="flex:1">Month-end date<input type="date" id="me_date"></label>
-      <button class="btn" id="me_run" style="align-self:flex-end">Run month end</button></div>
-    </div>
+  <section id="chooser" class="hide">
+    <h2 style="margin-bottom:12px">Choose a section</h2>
+    <div class="sections" id="secs"></div>
   </section>
 
-  <!-- Policies -->
-  <section id="v-policies" class="hide" style="display:flex;flex-direction:column;gap:14px">
-    <details class="card"><summary>New policy</summary>
-      <div class="grid">
-        <label>Class<select id="p_class"></select></label>
-        <label>Client<input id="p_holder" list="clients"></label>
-        <label>Phone<input id="p_phone" inputmode="tel"></label>
-        <label>Start<input type="date" id="p_start"></label>
-        <label>End<input type="date" id="p_end"></label>
-        <label>Sum insured (USD)<input id="p_si" inputmode="decimal"></label>
-        <label>Premium (USD)<input id="p_prem" inputmode="decimal"></label>
-        <label>Tax (USD)<input id="p_tax" inputmode="decimal"></label>
-        <label>Policy fee / sticker (USD)<input id="p_fee" inputmode="decimal"></label>
-        <label>Broker commission %<input id="p_comm" inputmode="decimal" placeholder="e.g. 10"></label>
-        <label>Paid now (USD)<input id="p_paid" inputmode="decimal"></label>
-        <label>Paid by<select id="p_method"><option value="bank">Bank</option><option value="cash">Cash</option><option value="momo">Mobile money</option></select></label>
-        <label>Facultative confirmed<select id="p_fac"><option value="">No</option><option value="1">Yes</option></select></label>
-      </div>
-      <div class="card" style="background:var(--navy)">
-        <div class="row" style="justify-content:space-between"><b>Vehicles / items insured</b><button class="btn ghost" id="it_add" type="button" style="min-height:38px">+ Add item</button></div>
-        <p class="note">One line per vehicle, machine or location. Premium and sum insured add up automatically.</p>
-        <div id="items"></div>
-      </div>
-      <label style="flex-direction:row;align-items:center;gap:8px"><input type="checkbox" id="p_docs" style="width:22px;min-height:22px"> Documents received and checked (claims allowed 15 days after this)</label>
-      <button class="btn" id="p_save">Issue policy</button>
-    </details>
-    <details class="card"><summary>Receive premium</summary>
-      <div class="grid">
-        <label>Policy no.<input id="r_pol" list="polnos"></label>
-        <label>Amount (USD)<input id="r_amt" inputmode="decimal"></label>
-        <label>Date<input type="date" id="r_date"></label>
-        <label>Paid by<select id="r_method"><option value="bank">Bank</option><option value="cash">Cash</option><option value="momo">Mobile money</option></select></label>
-        <label>Reference<input id="r_ref"></label>
-      </div>
-      <button class="btn" id="r_save">Post receipt</button>
-    </details>
-    <div class="card"><h2>Policies</h2><div class="tablewrap" id="t_policies"></div></div>
-  </section>
-
-  <!-- Claims -->
-  <section id="v-claims" class="hide" style="display:flex;flex-direction:column;gap:14px">
-    <details class="card"><summary>New claim</summary>
-      <div class="grid">
-        <label>Policy no.<input id="c_pol" list="polnos"></label>
-        <label>Date of loss<input type="date" id="c_loss"></label>
-        <label>First reserve (USD)<input id="c_res" inputmode="decimal"></label>
-      </div>
-      <label>What happened<textarea id="c_desc"></textarea></label>
-      <button class="btn" id="c_save">Open claim</button>
-    </details>
-    <details class="card"><summary>Update a claim</summary>
-      <div class="grid">
-        <label>Claim no.<input id="m_clm" list="clmnos"></label>
-        <label>Type<select id="m_kind"><option value="reserve">New reserve (total still to pay)</option><option value="payment">Payment</option><option value="salvage">Salvage / recovery</option></select></label>
-        <label>Amount (USD)<input id="m_amt" inputmode="decimal"></label>
-        <label>Date<input type="date" id="m_date"></label>
-        <label>Close claim<select id="m_close"><option value="">No</option><option value="1">Yes</option></select></label>
-      </div>
-      <button class="btn" id="m_save">Post</button>
-    </details>
-    <div class="card"><h2>Claims</h2><div class="tablewrap" id="t_claims"></div></div>
-  </section>
-
-  <!-- Payroll -->
-  <section id="v-payroll" class="hide" style="display:flex;flex-direction:column;gap:14px">
-    <div class="card"><h2>Staff</h2><p class="note">Change a salary and tap Save on that row.</p><div class="tablewrap" id="t_staff"></div>
-      <details><summary>Add staff</summary>
-        <div class="grid" style="margin-top:10px">
-          <label>Name<input id="s_name"></label><label>Position<input id="s_pos"></label>
-          <label>Monthly salary (USD)<input id="s_sal" inputmode="decimal"></label><label>Allowances (USD)<input id="s_all" inputmode="decimal"></label>
-        </div><button class="btn" id="s_add" style="margin-top:10px">Add</button>
-      </details>
-    </div>
-    <div class="card"><h2>Run payroll</h2>
-      <p class="note">Deducts PAYE (LRA bands) and NASSCORP 4% staff / 6% company, and posts to the books.</p>
-      <div class="grid">
-        <label>Month (YYYY-MM)<input id="pr_period" placeholder="2026-11"></label>
-        <label>Pay date<input type="date" id="pr_date"></label>
-        <label>USD → LRD rate<input id="pr_fx" inputmode="decimal" placeholder="e.g. 180"></label>
-      </div>
-      <button class="btn" id="pr_run">Run payroll</button>
-    </div>
-    <div class="card"><h2>Payslips</h2><div class="tablewrap" id="t_payroll"></div></div>
-  </section>
-
-  <!-- Reports -->
-  <section id="v-reports" class="hide" class="card">
-    <div class="card">
-      <div class="row">
-        <select id="rep" style="flex:1">
-          <option value="tb">Trial balance</option>
-          <option value="pnl">Profit & loss by month</option>
-          <option value="debtors">Who owes premium</option>
-          <option value="receipts">Receipts</option>
-          <option value="journals">Journal entries</option>
-          <option value="africa_re">Africa Re quarterly statement</option>
-          <option value="prem_bdx">Premium bordereau</option>
-          <option value="clm_bdx">Claims bordereau</option>
-          <option value="retention">Retention (CBL 20%)</option>
-          <option value="quotations">Quotations</option>
-          <option value="banks">Bank accounts</option>
-          <option value="shareholders">Shareholders</option>
-        </select>
-        <button class="btn ghost" id="rep_csv">Download CSV</button>
-      </div>
-      <div class="tablewrap" id="t_rep"></div>
-    </div>
-  </section>
-
-  <!-- Underwriting -->
-  <section id="v-uw" class="hide" style="display:flex;flex-direction:column;gap:14px">
-    <div class="card"><h2>Waiting for approval or documents</h2>
-      <p class="note">Referred risks need an underwriter's decision before they go on the books. Policies without checked documents cannot claim yet.</p>
-      <div class="tablewrap" id="t_uw"></div></div>
-    <div class="card"><h2>Who can approve what</h2>
-      <div class="tablewrap"><table><thead><tr><th>Person</th><th>May issue without referral</th></tr></thead><tbody>
-      <tr><td>Platinum Go / sales</td><td>Motor third party on the tariff. Everything else is referred.</td></tr>
-      <tr><td>Amos K. Sheriff — Technical Operations</td><td>Up to USD 250,000 per risk</td></tr>
-      <tr><td>Hanan — General Manager</td><td>Up to USD 1,000,000 per risk; motor comprehensive over 100,000; vehicles over 10 years</td></tr>
-      <tr><td>Chairman</td><td>Above USD 1,000,000 (facultative first); bonds</td></tr>
-      </tbody></table></div></div>
-  </section>
-
-  <!-- Team -->
-  <section id="v-team" class="hide" style="display:flex;flex-direction:column;gap:14px">
-    <div class="card"><h2>Who has access</h2><div class="tablewrap" id="t_users"></div></div>
-    <div class="card"><h2>Add or change a person</h2>
-      <div class="grid">
-        <label>Email<input id="u_email" type="email"></label>
-        <label>Name<input id="u_name"></label>
-        <label>Title<input id="u_title" placeholder="e.g. Sales officer"></label>
-        <label>Role<select id="u_role">
-          <option value="sales">Sales — issue policies, take premium, print</option>
-          <option value="underwriter">Underwriter — approve referred risks</option>
-          <option value="accountant">Accountant — everything except team</option>
-          <option value="viewer">Viewer — look only</option>
-          <option value="admin">Admin — everything</option></select></label>
-        <label>Approval limit (USD)<input id="u_limit" inputmode="decimal" placeholder="e.g. 250000"></label>
-      </div>
-      <p class="note">They sign in at this page with their own email. They need an AMI sign-in first — ask me to set one up if they don't have one.</p>
-      <button class="btn" id="u_save">Save</button>
-    </div>
-  </section>
-
-  <!-- Treaty -->
-  <section id="v-treaty" class="hide" style="display:flex;flex-direction:column;gap:14px">
-    <div class="card"><h2>Africa Re 2027 — treaty sections</h2><p class="note">Terms from Africa Re's offer (14 Nov 2026), not yet bound. Will be replaced with the signed slip.</p><div class="tablewrap" id="t_treaty"></div></div>
-    <div class="card"><h2>Excess of loss covers</h2><div class="tablewrap" id="t_xl"></div></div>
-    <div class="card"><h2>Products and treaty section</h2><div class="tablewrap" id="t_classes"></div></div>
-  </section>
-
-  <datalist id="clients"></datalist><datalist id="polnos"></datalist><datalist id="clmnos"></datalist>
+  <div id="view"></div>
 </main>
 
 <script type="module">
@@ -254,12 +100,16 @@ const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJ
 const sb = createClient(SB_URL, SB_KEY);
 const $ = (id) => document.getElementById(id);
 const today = () => new Date().toISOString().slice(0, 10);
-let lastRows = [];
+const V = () => $("view");
+let ME = null, LAST = [], TARIFF = [], CLASSES = [];
 
-function say(t, ok = true) { const m = $("msg"); m.textContent = t; m.className = "msg " + (ok ? "ok" : "err"); window.scrollTo({ top: 0, behavior: "smooth" }); if (ok) setTimeout(() => (m.className = "msg"), 6000); }
+// ---------- helpers ----------
+function say(t, ok = true) { const m = $("msg"); m.textContent = t; m.className = "msg " + (ok ? "ok" : "err"); window.scrollTo({ top: 0, behavior: "smooth" }); if (ok) setTimeout(() => (m.className = "msg"), 7000); }
 const money = (v) => v === null || v === undefined || v === "" ? "" : Number(v).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const isNum = (k, v) => v !== null && v !== "" && !isNaN(v) && typeof v !== "boolean" && !/(_no|code|phone|period|quarter|yr|id|last4|certificate)$/i.test(k) && !/date/i.test(k);
+const esc = (v) => (v === null || v === undefined ? "" : String(v).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])));
+const isNum = (k, v) => v !== null && v !== "" && typeof v !== "boolean" && !isNaN(v) && !/(_no|code|phone|period|quarter|yr|^id$|last4|certificate|sev|items|policies|year|months)$/i.test(k) && !/date|_at$|due/i.test(k);
 const label = (k) => k.replace(/_/g, " ").replace(/\bpct\b/, "%").replace(/^./, (c) => c.toUpperCase());
+const LONG = /limits|deductible|eligibility|documents|exclusions|conditions|triggers|basis|reason|description|notes|item$|detail|who|rating/;
 
 async function api(body) {
   const { data: { session } } = await sb.auth.getSession();
@@ -270,199 +120,355 @@ async function api(body) {
   return j;
 }
 const list = async (name) => (await api({ action: "list", name })).rows;
+const run = (fn) => async (...a) => { try { await fn(...a); } catch (e) { say(e.message, false); } };
 
-function table(el, rows, opts = {}) {
-  const box = typeof el === "string" ? $(el) : el;
-  if (!rows.length) { box.innerHTML = '<p class="note" style="padding:12px">Nothing yet.</p>'; return; }
+function table(box, rows, opts = {}) {
+  box = typeof box === "string" ? $(box) : box;
+  if (!rows || !rows.length) { box.innerHTML = '<p class="note" style="padding:12px">Nothing here yet.</p>'; return; }
   const cols = Object.keys(rows[0]).filter((c) => !(opts.hide || []).includes(c));
   let h = "<table><thead><tr>" + cols.map((c) => `<th>${label(c)}</th>`).join("") + (opts.extra ? "<th></th>" : "") + "</tr></thead><tbody>";
   for (const r of rows) {
     h += "<tr>" + cols.map((c) => {
       const v = r[c];
+      if (c === "status" && (v === "proposed" || v === "approved")) return `<td><span class="pill ${v === "approved" ? "a" : "p"}">${v === "approved" ? "Approved" : "Proposed — for sign-off"}</span></td>`;
       if (/_pct$/.test(c) && v !== null && v !== "") return `<td class="n">${(Number(v) * 100).toFixed(1)}%</td>`;
       if (isNum(c, v)) return `<td class="n">${money(v)}</td>`;
       if (typeof v === "boolean") return `<td>${v ? "Yes" : "No"}</td>`;
-      return `<td>${v === null || v === undefined ? "" : String(v).replace(/</g, "&lt;").slice(0, 120)}</td>`;
+      if (v && typeof v === "object") return `<td class="wrap">${esc(JSON.stringify(v)).slice(0, 200)}</td>`;
+      const s = v === null || v === undefined ? "" : String(v);
+      return `<td${LONG.test(c) ? ' class="wrap"' : ""}>${esc(/date|_at$|due/.test(c) ? s.slice(0, 10) : s)}</td>`;
     }).join("") + (opts.extra ? `<td>${opts.extra(r)}</td>` : "") + "</tr>";
   }
   box.innerHTML = h + "</tbody></table>";
 }
+const kpis = (arr) => `<div class="kpis">${arr.map(([l, v, red]) => `<div class="kpi${red ? " red" : ""}"><div class="l">${l}</div><div class="v">${v}</div></div>`).join("")}</div>`;
+const printBtn = (no) => `<a class="btn ghost sm" style="display:inline-flex;align-items:center;text-decoration:none" href="print.html?no=${encodeURIComponent(no)}" target="_blank">Print</a>`;
+const csvBtn = (name) => `<button class="btn ghost sm" data-csv="${name}">Download</button>`;
+function bindCsv() {
+  document.querySelectorAll("[data-csv]").forEach((b) => (b.onclick = () => {
+    if (!LAST.length) return; const cols = Object.keys(LAST[0]);
+    const csv = [cols.join(",")].concat(LAST.map((r) => cols.map((c) => `"${String(r[c] ?? "").replace(/"/g, '""')}"`).join(","))).join("\n");
+    const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" })); a.download = `platinum-${b.dataset.csv}-${today()}.csv`; a.click();
+  }));
+}
 
-function showLogin() { $("v-login").classList.remove("hide"); $("tabs").classList.add("hide"); document.querySelectorAll("main > section:not(#v-login)").forEach((s) => s.classList.add("hide")); }
+// ---------- sections by position ----------
+const SECTIONS = {
+  sales: { name: "Sales", desc: "Quote and issue policies, take payment, print, my clients and renewals.", roles: ["sales", "underwriter", "gm", "admin"],
+    tabs: { s_new: "New policy", s_mine: "My policies", s_clients: "Clients", s_guide: "Product guide" } },
+  uw: { name: "Underwriting", desc: "Approve referred risks, check documents, product rules, claims and treaty.", roles: ["underwriter", "gm", "admin"],
+    tabs: { u_queue: "Approvals", u_all: "All policies", u_claims: "Claims", u_rules: "Product rules", u_treaty: "Africa Re" } },
+  acct: { name: "Accounting", desc: "Receipts, debtors, commissions, payroll, month end, reports and compliance.", roles: ["accountant", "gm", "admin"],
+    tabs: { a_receipts: "Receipts", a_debtors: "Debtors", a_comm: "Commissions", a_payroll: "Payroll", a_reports: "Reports", a_close: "Month end", a_comp: "Compliance" } },
+  gm: { name: "General Manager", desc: "Company overview, alerts, approvals up to USD 1,000,000, compliance, board report.", roles: ["gm", "admin"],
+    tabs: { g_over: "Overview", g_alerts: "Alerts", u_queue: "Approvals", a_comp: "Compliance", b_report: "Board report" } },
+  ceo: { name: "CEO", desc: "Full access: overview, team and access, sign-off of product rules, audit trail.", roles: ["admin"],
+    tabs: { g_over: "Overview", c_team: "Team & access", c_rules: "Sign off rules", c_audit: "Audit trail", g_alerts: "Alerts" } },
+  board: { name: "Board", desc: "Monthly board report and risks above management limits for approval.", roles: ["board", "admin"],
+    tabs: { b_report: "Monthly report", b_approvals: "Above-limit approvals", a_comp: "Compliance" } },
+};
 
-$("sendcode").onclick = async () => {
+function showLogin() { $("login").classList.remove("hide"); $("chooser").classList.add("hide"); $("tabs").classList.add("hide"); V().innerHTML = ""; }
+function showChooser() {
+  V().innerHTML = ""; $("tabs").classList.add("hide"); $("where").textContent = "Insurers, Inc.";
+  const mine = Object.entries(SECTIONS).filter(([, s]) => s.roles.includes(ME.role));
+  if (mine.length === 1) return openSection(mine[0][0]);
+  $("secs").innerHTML = mine.map(([k, s]) => `<button class="sec" data-sec="${k}"><b>${s.name}</b><span>${s.desc}</span></button>`).join("");
+  document.querySelectorAll("[data-sec]").forEach((b) => (b.onclick = () => openSection(b.dataset.sec)));
+  $("chooser").classList.remove("hide");
+}
+function openSection(k) {
+  const s = SECTIONS[k];
+  $("chooser").classList.add("hide"); $("where").textContent = s.name + " · tap PLATINUM for sections";
+  $("tabs").innerHTML = Object.entries(s.tabs).map(([id, n], i) => `<button class="tab" data-t="${id}" aria-pressed="${i === 0}">${n}</button>`).join("");
+  $("tabs").classList.remove("hide");
+  document.querySelectorAll("[data-t]").forEach((b) => (b.onclick = () => openTab(b.dataset.t)));
+  openTab(Object.keys(s.tabs)[0]);
+}
+function openTab(id) {
+  document.querySelectorAll("[data-t]").forEach((b) => b.setAttribute("aria-pressed", b.dataset.t === id));
+  V().innerHTML = '<p class="note">Loading…</p>';
+  run(VIEWS[id])();
+}
+$("home").onclick = () => ME && showChooser();
+
+// ---------- sign in ----------
+$("sendcode").onclick = run(async () => {
   const email = $("em").value.trim(); if (!email) return;
   const { error } = await sb.auth.signInWithOtp({ email, options: { shouldCreateUser: false } });
-  if (error) return say(error.message, false);
+  if (error) throw new Error(/signup|not allowed|not found/i.test(error.message) ? "This email is not set up. Ask management for access." : error.message);
   $("codebox").classList.remove("hide"); say("Code sent to " + email);
-};
-$("verify").onclick = async () => {
+});
+$("verify").onclick = run(async () => {
   const { error } = await sb.auth.verifyOtp({ email: $("em").value.trim(), token: $("code").value.trim(), type: "email" });
-  if (error) return say(error.message, false);
-  start();
-};
+  if (error) throw new Error(error.message); start();
+});
 
-const views = { home: loadHome, policies: loadPolicies, uw: loadUW, claims: loadClaims, payroll: loadPayroll, reports: loadReport, treaty: loadTreaty, team: loadTeam };
-let ME = null;
-const printBtn = (no) => `<a class="btn ghost" style="min-height:34px;display:inline-flex;align-items:center;text-decoration:none;font-size:13px" href="print.html?no=${encodeURIComponent(no)}" target="_blank">Print</a>`;
-function show(v) {
-  document.querySelectorAll(".tab").forEach((t) => t.setAttribute("aria-pressed", t.dataset.v === v));
-  document.querySelectorAll("main > section").forEach((s) => s.classList.add("hide"));
-  $("v-" + v).classList.remove("hide");
-  views[v]().catch((e) => say(e.message, false));
-}
-document.querySelectorAll(".tab").forEach((t) => (t.onclick = () => show(t.dataset.v)));
-
-async function loadHome() {
-  const { d, me, sales } = await api({ action: "dashboard" });
-  $("who").innerHTML = `${me.name || me.email}<br>${me.title || me.role}`;
-  if (sales) {
-    $("kpis").innerHTML = [["My policies", d.my_policies], ["My premium written", money(d.my_premium)], ["Waiting for approval", d.my_referred], ["Not yet paid", d.my_unpaid]]
-      .map(([l, v]) => `<div class="kpi"><div class="l">${l}</div><div class="v">${v}</div></div>`).join("");
-    document.querySelector("#v-home .card").classList.add("hide");
-    return;
-  }
-  const k = [
-    ["Premium written", money(d.gwp)], ["Result so far", money(d.result)], ["Premium owed to us", money(d.receivable)],
-    ["Cash and bank", money(d.cash)], ["Unearned premium", money(d.upr)], ["Claims reserve", money(d.claims_reserve)],
-    ["Owed to Africa Re", money(d.africa_re_payable)], ["Policies", d.policies + " (" + d.active + " paid up)"], ["Waiting for approval", d.referred],
-    ["Open claims", d.open_claims], ["Open quotations", d.open_quotes],
-    ["Kept by Platinum", d.retained_pct === null ? "—" : (d.retained_pct * 100).toFixed(1) + "%"], ["Books start", d.books_start || "—"],
-  ];
-  $("kpis").innerHTML = k.map(([l, v]) => `<div class="kpi"><div class="l">${l}</div><div class="v">${v}</div></div>`).join("");
-}
-$("me_run").onclick = async () => { try { await api({ action: "month_end", date: $("me_date").value }); say("Month end posted"); loadHome(); } catch (e) { say(e.message, false); } };
-
-async function loadPolicies() {
-  const [pol, cls] = await Promise.all([list("policies"), list("classes")]);
-  $("p_class").innerHTML = cls.map((c) => `<option value="${c.code}" ${c.blocked ? "disabled" : ""}>${c.name}${c.blocked ? " (blocked)" : ""}</option>`).join("");
-  $("polnos").innerHTML = pol.map((p) => `<option value="${p.policy_no}">${p.holder || ""}</option>`).join("");
-  $("clients").innerHTML = [...new Set(pol.map((p) => p.holder).filter(Boolean))].map((h) => `<option value="${h}">`).join("");
-  table("t_policies", pol, { hide: ["id", "class_code", "tax", "policy_fee", "source"], extra: (r) => printBtn(r.policy_no) });
-}
-$("p_start").onchange = () => { const s = new Date($("p_start").value); if (!isNaN(s)) { s.setFullYear(s.getFullYear() + 1); s.setDate(s.getDate() - 1); $("p_end").value = s.toISOString().slice(0, 10); } };
-$("p_save").onclick = async () => {
-  try {
-    const p = { class_code: $("p_class").value, holder: $("p_holder").value.trim(), phone: $("p_phone").value.trim(), start_date: $("p_start").value, end_date: $("p_end").value,
-      sum_insured: $("p_si").value, gross_premium: $("p_prem").value, tax: $("p_tax").value, policy_fee: $("p_fee").value,
-      commission_pct: $("p_comm").value ? Number($("p_comm").value) / 100 : 0, paid: $("p_paid").value, method: $("p_method").value, fac_confirmed: !!$("p_fac").value,
-      items: readItems(), docs_verified: $("p_docs").checked };
-    const r = await api({ action: "create_policy", p });
-    const pp = r.policy;
-    if (pp.uw_status === "referred") say(`Policy ${pp.policy_no} sent to ${pp.referred_to} for approval — ${pp.referral_reason}`);
-    else say(`Policy ${pp.policy_no} issued · ${pp.status === "active" ? "paid up, cover active" : "waiting for payment (no premium, no cover)"} · Africa Re share ${(Number(pp.ceded_pct) * 100).toFixed(1)}%`);
-    if (pp.uw_status !== "referred") window.open("print.html?no=" + encodeURIComponent(pp.policy_no), "_blank");
-    ["p_holder", "p_phone", "p_si", "p_prem", "p_tax", "p_fee", "p_comm", "p_paid"].forEach((i) => ($(i).value = ""));
-    $("items").innerHTML = ""; addItem(); $("p_docs").checked = false;
-    loadPolicies();
-  } catch (e) { say(e.message, false); }
-};
-$("r_save").onclick = async () => {
-  try {
-    const r = await api({ action: "add_receipt", r: { policy_no: $("r_pol").value.trim(), amount: $("r_amt").value, rdate: $("r_date").value || today(), method: $("r_method").value, ref: $("r_ref").value } });
-    say(`Receipt posted · ${r.policy.policy_no} is now ${r.policy.status.replace("_", " ")}`); $("r_amt").value = ""; $("r_ref").value = ""; loadPolicies();
-  } catch (e) { say(e.message, false); }
-};
-
-function addItem() {
-  const d = document.createElement("div");
-  d.className = "grid item"; d.style.cssText = "border-top:1px solid var(--line);padding-top:10px";
-  d.innerHTML = `<label>Description<input data-k="description" placeholder="e.g. Toyota Hilux pick-up"></label>
-    <label>Plate no.<input data-k="plate_no"></label><label>Chassis / VIN<input data-k="chassis_vin"></label>
-    <label>Make / model<input data-k="make_model"></label><label>Year<input data-k="year" inputmode="numeric"></label>
-    <label>Use / tariff category<input data-k="use_category" placeholder="e.g. Private car — jeep"></label>
-    <label>Location (property)<input data-k="location"></label>
-    <label>Sum insured (USD)<input data-k="sum_insured" inputmode="decimal"></label><label>Premium (USD)<input data-k="premium" inputmode="decimal"></label>`;
-  d.querySelectorAll('[data-k="premium"],[data-k="sum_insured"]').forEach((i) => (i.oninput = sumItems));
-  $("items").appendChild(d);
-}
-function readItems() { return [...document.querySelectorAll("#items .item")].map((d) => { const o = {}; d.querySelectorAll("[data-k]").forEach((i) => (o[i.dataset.k] = i.value.trim())); return o; }); }
-function sumItems() {
-  const it = readItems(); const pr = it.reduce((s, i) => s + (Number(i.premium) || 0), 0); const si = it.reduce((s, i) => s + (Number(i.sum_insured) || 0), 0);
-  if (pr) $("p_prem").value = pr.toFixed(2); if (si) $("p_si").value = si.toFixed(2);
-}
-$("it_add").onclick = addItem; addItem();
-
-async function loadUW() {
-  const rows = await list("uw_queue");
-  const canDecide = ME && ["admin", "underwriter"].includes(ME.role);
-  table("t_uw", rows, { hide: ["id"], extra: (r) => {
-    let h = printBtn(r.policy_no) + " ";
-    if (r.uw_status === "referred" && canDecide) h += `<button class="btn" style="min-height:34px" data-ok="${r.policy_no}">Approve</button> <button class="btn ghost" style="min-height:34px" data-no="${r.policy_no}">Decline</button>`;
-    if (r.uw_status === "approved" && !r.docs_verified_at) h += `<button class="btn" style="min-height:34px" data-doc="${r.policy_no}">Documents checked</button>`;
-    return `<span class="row" style="flex-wrap:nowrap">${h}</span>`; } });
-  document.querySelectorAll("[data-ok]").forEach((b) => (b.onclick = async () => {
-    try { let fac = false; if (!confirm("Approve " + b.dataset.ok + "? It goes on the books now.")) return;
-      await api({ action: "uw_decide", policy_no: b.dataset.ok, decision: "approve", fac_confirmed: fac }); say(b.dataset.ok + " approved"); loadUW(); } catch (e) { say(e.message, false); } }));
-  document.querySelectorAll("[data-no]").forEach((b) => (b.onclick = async () => {
-    const reason = prompt("Reason for declining " + b.dataset.no + "?"); if (reason === null) return;
-    try { await api({ action: "uw_decide", policy_no: b.dataset.no, decision: "decline", reason }); say(b.dataset.no + " declined"); loadUW(); } catch (e) { say(e.message, false); } }));
-  document.querySelectorAll("[data-doc]").forEach((b) => (b.onclick = async () => {
-    try { const r = await api({ action: "verify_docs", policy_no: b.dataset.doc }); say(`Documents checked · claims accepted for losses from ${String(r.claims_from).slice(0, 10)}`); loadUW(); } catch (e) { say(e.message, false); } }));
+function tariffSelect(attr = "") {
+  return `<select ${attr}><option value="">Tariff category…</option>${TARIFF.map((t) => `<option value="${t.id}">${esc(t.category)} — ${esc(t.sub_category)} · ${t.months} months · ${money(t.premium)}</option>`).join("")}</select>`;
 }
 
-async function loadTeam() {
-  table("t_users", await list("users"));
-}
-$("u_save").onclick = async () => {
-  try { await api({ action: "add_user", u: { email: $("u_email").value.trim(), name: $("u_name").value.trim(), title: $("u_title").value.trim(), role: $("u_role").value, authority_limit: $("u_limit").value } });
-    say("Saved"); ["u_email", "u_name", "u_title", "u_limit"].forEach((i) => ($(i).value = "")); loadTeam(); } catch (e) { say(e.message, false); }
+// ---------- VIEWS ----------
+const VIEWS = {
+  // ===== SALES =====
+  async s_new() {
+    if (!TARIFF.length) TARIFF = await list("tariff");
+    if (!CLASSES.length) CLASSES = await list("classes");
+    V().innerHTML = `<div class="card">
+      <h2>New policy</h2>
+      <p class="note">The system prices every policy from the rate table. Motor third party is issued on the spot; other products go to underwriting for approval.</p>
+      <div class="grid">
+        <label>Product<select id="n_class">${CLASSES.filter((c) => !c.blocked).map((c) => `<option value="${c.code}">${esc(c.name)}</option>`).join("")}</select></label>
+        <label>Client name<input id="n_holder" list="n_cl"></label>
+        <label>Phone<input id="n_phone" inputmode="tel"></label>
+        <label>Cover starts<input type="date" id="n_start" value="${today()}"></label>
+      </div>
+      <datalist id="n_cl"></datalist>
+      <div class="card" style="background:var(--navy)">
+        <div class="row" style="justify-content:space-between"><h3>Vehicles / items</h3><button class="btn ghost sm" id="n_add" type="button">+ Add</button></div>
+        <div id="n_items"></div>
+      </div>
+      <button class="btn ghost" id="n_quote">Get price</button>
+      <div id="n_q"></div>
+      <div id="n_issue" class="hide card" style="background:var(--navy)">
+        <div class="grid">
+          <label>Paid now (USD)<input id="n_paid" inputmode="decimal"></label>
+          <label>Paid by<select id="n_method"><option value="cash">Cash</option><option value="momo">Mobile money</option><option value="bank">Bank</option><option value="cheque">Cheque</option></select></label>
+          <label>Receipt / reference<input id="n_ref"></label>
+          <label id="n_ovL" class="hide">Premium (underwriter)<input id="n_ov" inputmode="decimal" placeholder="Blank = rate table"></label>
+        </div>
+        <label style="flex-direction:row;align-items:center;gap:8px" id="n_docsL"><input type="checkbox" id="n_docs" style="width:22px;min-height:22px"> Documents seen and checked</label>
+        <button class="btn" id="n_go">Issue policy</button>
+      </div>
+    </div>`;
+    if (["underwriter", "gm", "admin"].includes(ME.role)) $("n_ovL").classList.remove("hide"); else $("n_docsL").classList.add("hide");
+    list("clients").then((c) => ($("n_cl").innerHTML = c.map((x) => `<option value="${esc(x.name)}">`).join(""))).catch(() => {});
+    const isTariff = () => ["MTPL", "MFLEET"].includes($("n_class").value);
+    const addItem = () => {
+      const d = document.createElement("div"); d.className = "grid it"; d.style.cssText = "border-top:1px solid var(--line);padding-top:10px";
+      d.innerHTML = (isTariff() ? `<label style="grid-column:1/-1">Tariff category${tariffSelect('data-k="tariff_id"')}</label>` : "") +
+        `<label>Description<input data-k="description"></label><label>Plate no.<input data-k="plate_no"></label><label>Chassis / VIN<input data-k="chassis_vin"></label>
+         <label>Make / model<input data-k="make_model"></label><label>Year<input data-k="year" inputmode="numeric"></label>
+         <label>Use / location<input data-k="use_category"></label>` + ($("n_class").value === "MTPL" ? "" : `<label>Value / sum insured (USD)<input data-k="sum_insured" inputmode="decimal"></label>`);
+      $("n_items").appendChild(d);
+    };
+    const reset = () => { $("n_items").innerHTML = ""; addItem(); $("n_q").innerHTML = ""; $("n_issue").classList.add("hide"); };
+    $("n_class").onchange = reset; $("n_add").onclick = addItem; reset();
+    const read = () => ({
+      class_code: $("n_class").value, holder: $("n_holder").value.trim(), phone: $("n_phone").value.trim(), start_date: $("n_start").value,
+      items: [...document.querySelectorAll("#n_items .it")].map((d) => { const o = {}; d.querySelectorAll("[data-k]").forEach((i) => (o[i.dataset.k] = i.value.trim())); return o; }),
+      premium_override: $("n_ov").value, paid: $("n_paid").value, method: $("n_method").value, ref: $("n_ref").value, docs_verified: $("n_docs").checked,
+    });
+    $("n_quote").onclick = run(async () => {
+      const { quote: q } = await api({ action: "quote", p: read() });
+      $("n_q").innerHTML = `<div class="quote">
+        <b style="font-size:18px;color:var(--gold)">Premium USD ${money(q.premium)}</b> + fees ${money(q.fee)} = <b>USD ${money(q.total)}</b><br>
+        Cover ${q.start_date} to ${q.end_date}${q.sum_insured ? ` · Sum insured USD ${money(q.sum_insured)}` : ""}<br>
+        <b>Limits:</b> ${esc(q.limits)}<br><b>Deductible:</b> ${esc(q.deductible)}<br><b>Documents needed:</b> ${esc(q.documents)}<br>
+        ${q.refer ? `<b style="color:var(--red)">Goes to ${esc(q.referred_to)} for approval:</b> ${esc(q.why)}` : `<b style="color:var(--green)">Can be issued now.</b>`}
+        ${q.rule_status === "proposed" ? '<br><span class="pill p">Rates proposed — not yet signed off</span>' : ""}</div>`;
+      $("n_issue").classList.remove("hide"); $("n_go").textContent = q.refer ? "Send for approval" : "Issue policy";
+    });
+    $("n_go").onclick = run(async () => {
+      const { policy: p } = await api({ action: "create_policy", p: read() });
+      if (p.uw_status === "referred") say(`${p.policy_no} sent to ${p.referred_to} for approval.\n${p.referral_reason}`);
+      else { say(`${p.policy_no} issued · ${p.status === "active" ? "paid, cover in force" : "not yet paid — no cover until paid"}`); window.open("print.html?no=" + encodeURIComponent(p.policy_no), "_blank"); }
+      ["n_holder", "n_phone", "n_paid", "n_ref", "n_ov"].forEach((i) => ($(i).value = "")); reset();
+    });
+  },
+  async s_mine() {
+    const rows = (await api({ action: "my_policies" })).rows;
+    const soon = rows.filter((r) => r.uw_status === "approved" && r.end_date && new Date(r.end_date) - new Date() < 30 * 864e5 && r.end_date >= today());
+    V().innerHTML = `<div class="card"><h2>Take a payment</h2><div class="grid">
+        <label>Policy no.<select id="r_pol">${rows.filter((r) => r.uw_status === "approved" && Number(r.balance) > 0).map((r) => `<option value="${esc(r.policy_no)}">${esc(r.policy_no)} — ${esc(r.holder)} (${money(r.balance)})</option>`).join("")}</select></label>
+        <label>Amount (USD)<input id="r_amt" inputmode="decimal"></label>
+        <label>Paid by<select id="r_m"><option value="cash">Cash</option><option value="momo">Mobile money</option><option value="bank">Bank</option><option value="cheque">Cheque</option></select></label>
+        <label>Receipt / reference<input id="r_ref"></label></div><button class="btn" id="r_go">Record payment</button></div>
+      ${soon.length ? `<div class="card"><h2>Renewals due in 30 days</h2><div class="tablewrap" id="t_soon"></div></div>` : ""}
+      <div class="card"><h2>My policies</h2><div class="tablewrap" id="t_mine"></div></div>`;
+    if (soon.length) table("t_soon", soon, { hide: ["id", "class_code", "created_by", "referred_to", "docs_verified_at", "items"], extra: (r) => printBtn(r.policy_no) });
+    table("t_mine", rows, { hide: ["id", "class_code", "created_by"], extra: (r) => r.uw_status === "approved" ? printBtn(r.policy_no) : "" });
+    $("r_go").onclick = run(async () => { const r = await api({ action: "add_receipt", r: { policy_no: $("r_pol").value, amount: $("r_amt").value, method: $("r_m").value, ref: $("r_ref").value } }); say(`Payment recorded · ${r.policy.policy_no} ${r.policy.status === "active" ? "is now in force" : "is still part-paid"}`); VIEWS.s_mine(); });
+  },
+  async s_clients() { LAST = await list("clients"); V().innerHTML = `<div class="card"><div class="row" style="justify-content:space-between"><h2>Clients</h2>${csvBtn("clients")}</div><div class="tablewrap" id="t"></div></div>`; table("t", LAST, { hide: ["id"] }); bindCsv(); },
+  async s_guide() {
+    const r = await list("rules");
+    V().innerHTML = `<div class="card"><h2>Product guide</h2><p class="note">What each product covers: limits, deductibles, documents and when it must be referred.</p><div class="tablewrap" id="t"></div></div>`;
+    table("t", r.map((x) => ({ product: x.name, status: x.status, rating: x.rating_basis, min_premium: x.min_premium, limits: x.limits, deductible: x.deductible, documents: x.documents, referral_triggers: x.referral_triggers })));
+  },
+
+  // ===== UNDERWRITING =====
+  async u_queue() {
+    const rows = await list("uw_queue");
+    const mine = ME.role === "board" ? rows.filter((r) => r.board_approval && r.uw_status === "referred") : rows;
+    V().innerHTML = `<div class="card"><h2>${ME.role === "board" ? "Risks above management limits" : "Waiting for a decision"}</h2>
+      <p class="note">Underwriting approves up to its limit, the General Manager up to USD 1,000,000, and the Board above that. Approving puts the policy on the books and cedes to Africa Re.</p>
+      <div class="tablewrap" id="t"></div></div>
+      <div class="card"><h3>Approval limits</h3><div class="tablewrap"><table><tbody>
+      <tr><td>Sales</td><td>Motor third party on the tariff only</td></tr><tr><td>Underwriting</td><td>Up to USD 250,000 per risk</td></tr>
+      <tr><td>General Manager</td><td>Up to USD 1,000,000; motor comprehensive over 100,000; vehicles over 10 years</td></tr>
+      <tr><td>Board / CEO</td><td>Above USD 1,000,000 or above product capacity — facultative first; bonds</td></tr></tbody></table></div></div>`;
+    table("t", mine, { extra: (r) => {
+      let h = printBtn(r.policy_no) + " ";
+      if (r.uw_status === "referred") h += `<button class="btn sm" data-ok="${esc(r.policy_no)}">Approve</button> <button class="btn ghost sm" data-no="${esc(r.policy_no)}">Decline</button>`;
+      else if (!r.docs_verified_at && ME.role !== "board") h += `<button class="btn sm" data-doc="${esc(r.policy_no)}">Documents checked</button>`;
+      return `<span class="row" style="flex-wrap:nowrap">${h}</span>`; } });
+    document.querySelectorAll("[data-ok]").forEach((b) => (b.onclick = run(async () => {
+      const note = prompt(`Approve ${b.dataset.ok}?\nConditions or note (optional). For risks above capacity write "fac confirmed" once facultative is in writing.`); if (note === null) return;
+      const prem = ["underwriter", "gm", "admin"].includes(ME.role) ? prompt("New premium in USD (leave blank to keep the quoted premium)") : "";
+      await api({ action: "uw_decide", policy_no: b.dataset.ok, decision: "approve", reason: note, premium: prem, fac_confirmed: /fac/i.test(note) });
+      say(b.dataset.ok + " approved"); VIEWS.u_queue(); })));
+    document.querySelectorAll("[data-no]").forEach((b) => (b.onclick = run(async () => {
+      const reason = prompt("Reason for declining " + b.dataset.no); if (reason === null) return;
+      await api({ action: "uw_decide", policy_no: b.dataset.no, decision: "decline", reason }); say(b.dataset.no + " declined"); VIEWS.u_queue(); })));
+    document.querySelectorAll("[data-doc]").forEach((b) => (b.onclick = run(async () => {
+      const r = await api({ action: "verify_docs", policy_no: b.dataset.doc }); say(`Documents checked · claims accepted for losses from ${String(r.claims_from).slice(0, 10)}`); VIEWS.u_queue(); })));
+  },
+  async u_all() { LAST = await list("policies"); V().innerHTML = `<div class="card"><div class="row" style="justify-content:space-between"><h2>All policies</h2>${csvBtn("policies")}</div><div class="tablewrap" id="t"></div></div>`; table("t", LAST, { hide: ["id", "class_code"], extra: (r) => printBtn(r.policy_no) }); bindCsv(); },
+  async u_claims() {
+    const cl = await list("claims");
+    V().innerHTML = `<div class="card"><h2>New claim</h2><p class="note">Only for losses inside the policy period and from 15 days after documents were checked. The product's deductible applies.</p><div class="grid">
+        <label>Policy no.<input id="c_pol"></label><label>Date of loss<input type="date" id="c_loss" value="${today()}"></label><label>First reserve (USD)<input id="c_res" inputmode="decimal"></label></div>
+        <label>What happened<textarea id="c_desc"></textarea></label><button class="btn" id="c_go">Open claim</button></div>
+      <div class="card"><h2>Update a claim</h2><div class="grid">
+        <label>Claim no.<select id="m_clm">${cl.filter((c) => c.status === "open").map((c) => `<option>${esc(c.claim_no)}</option>`).join("")}</select></label>
+        <label>Type<select id="m_kind"><option value="reserve">New reserve (still to pay)</option><option value="payment">Payment (net of deductible)</option><option value="salvage">Salvage / recovery</option></select></label>
+        <label>Amount (USD)<input id="m_amt" inputmode="decimal"></label><label>Close<select id="m_close"><option value="">No</option><option value="1">Yes</option></select></label></div>
+        <button class="btn" id="m_go">Post</button></div>
+      <div class="card"><h2>Claims</h2><div class="tablewrap" id="t"></div></div>`;
+    table("t", cl);
+    $("c_go").onclick = run(async () => { const r = await api({ action: "create_claim", c: { policy_no: $("c_pol").value.trim(), loss_date: $("c_loss").value, description: $("c_desc").value, reserve: $("c_res").value } }); say("Claim " + r.claim.claim_no + " opened"); VIEWS.u_claims(); });
+    $("m_go").onclick = run(async () => { await api({ action: "claim_move", m: { claim_no: $("m_clm").value, kind: $("m_kind").value, amount: $("m_amt").value, close: !!$("m_close").value } }); say("Claim updated"); VIEWS.u_claims(); });
+  },
+  async u_rules() { await rulesView(false); },
+  async u_treaty() {
+    const [t, x] = await Promise.all([list("treaty"), list("xl")]);
+    V().innerHTML = `<div class="card"><h2>Africa Re 2027 — treaty sections</h2><p class="note">Offer terms (14 Nov 2026), not yet bound.</p><div class="tablewrap" id="t1"></div></div><div class="card"><h2>Excess of loss covers</h2><div class="tablewrap" id="t2"></div></div>`;
+    table("t1", t, { hide: ["terms_source", "reinsurer"] }); table("t2", x);
+  },
+
+  // ===== ACCOUNTING =====
+  async a_receipts() {
+    const pol = await list("policies"); LAST = await list("receipts");
+    V().innerHTML = `<div class="card"><h2>Record a receipt</h2><div class="grid">
+        <label>Policy no.<select id="r_pol">${pol.filter((p) => p.uw_status === "approved" && Number(p.balance) > 0).map((p) => `<option value="${esc(p.policy_no)}">${esc(p.policy_no)} — ${esc(p.holder)} (${money(p.balance)})</option>`).join("")}</select></label>
+        <label>Amount (USD)<input id="r_amt" inputmode="decimal"></label><label>Date<input type="date" id="r_date" value="${today()}"></label>
+        <label>Paid by<select id="r_m"><option value="bank">Bank</option><option value="cash">Cash</option><option value="momo">Mobile money</option><option value="cheque">Cheque</option></select></label>
+        <label>Reference<input id="r_ref"></label></div><button class="btn" id="r_go">Post receipt</button></div>
+      <div class="card"><div class="row" style="justify-content:space-between"><h2>Receipts</h2>${csvBtn("receipts")}</div><div class="tablewrap" id="t"></div></div>`;
+    table("t", LAST); bindCsv();
+    $("r_go").onclick = run(async () => { await api({ action: "add_receipt", r: { policy_no: $("r_pol").value, amount: $("r_amt").value, rdate: $("r_date").value, method: $("r_m").value, ref: $("r_ref").value } }); say("Receipt posted"); VIEWS.a_receipts(); });
+  },
+  async a_debtors() { LAST = await list("debtors"); V().innerHTML = `<div class="card"><div class="row" style="justify-content:space-between"><h2>Premium owed to Platinum</h2>${csvBtn("debtors")}</div><div class="tablewrap" id="t"></div></div>`; table("t", LAST); bindCsv(); },
+  async a_comm() {
+    LAST = await list("commissions");
+    V().innerHTML = `<div class="card"><h2>Pay a broker / agent</h2><div class="grid"><label>Broker<input id="k_b"></label><label>Amount (USD)<input id="k_a" inputmode="decimal"></label>
+      <label>Paid by<select id="k_m"><option value="bank">Bank</option><option value="cash">Cash</option></select></label></div><button class="btn" id="k_go">Post payment</button></div>
+      <div class="card"><h2>Commissions</h2><p class="note">Earned when the client pays the premium.</p><div class="tablewrap" id="t"></div></div>`;
+    table("t", LAST);
+    $("k_go").onclick = run(async () => { await api({ action: "pay_commission", c: { broker: $("k_b").value.trim(), amount: $("k_a").value, method: $("k_m").value } }); say("Commission payment posted"); VIEWS.a_comm(); });
+  },
+  async a_payroll() {
+    const [st, ps] = await Promise.all([list("staff"), list("payroll")]);
+    V().innerHTML = `<div class="card"><h2>Staff</h2><div class="tablewrap" id="t1"></div>
+        <details><summary>Add staff</summary><div class="grid" style="margin-top:10px"><label>Name<input id="s_n"></label><label>Position<input id="s_p"></label><label>Salary (USD)<input id="s_s" inputmode="decimal"></label><label>Allowances<input id="s_a" inputmode="decimal"></label></div><button class="btn" id="s_go" style="margin-top:10px">Add</button></details></div>
+      <div class="card"><h2>Run payroll</h2><p class="note">PAYE on LRA bands; NASSCORP 4% staff, 6% company.</p><div class="grid">
+        <label>Month (YYYY-MM)<input id="p_per" value="${today().slice(0, 7)}"></label><label>Pay date<input type="date" id="p_d" value="${today()}"></label><label>USD → LRD rate<input id="p_fx" inputmode="decimal"></label></div><button class="btn" id="p_go">Run payroll</button></div>
+      <div class="card"><h2>Payslips</h2><div class="tablewrap" id="t2"></div></div>`;
+    table("t1", st, { hide: ["id", "department", "currency", "basic_salary", "allowances", "active"], extra: (s) =>
+      `<span class="row" style="flex-wrap:nowrap"><input style="width:100px;min-height:34px" id="sal${s.id}" value="${s.basic_salary ?? ""}" placeholder="Salary"><input style="width:80px;min-height:34px" id="all${s.id}" value="${s.allowances ?? 0}"><button class="btn sm" data-st="${s.id}" data-n="${encodeURIComponent(s.name)}" data-p="${encodeURIComponent(s.position || "")}">Save</button></span>` });
+    table("t2", ps);
+    document.querySelectorAll("[data-st]").forEach((b) => (b.onclick = run(async () => { const id = b.dataset.st; await api({ action: "update_staff", s: { id: +id, name: decodeURIComponent(b.dataset.n), position: decodeURIComponent(b.dataset.p), basic_salary: $("sal" + id).value, allowances: $("all" + id).value } }); say("Saved"); })));
+    $("s_go").onclick = run(async () => { await api({ action: "update_staff", s: { name: $("s_n").value, position: $("s_p").value, basic_salary: $("s_s").value, allowances: $("s_a").value } }); say("Staff added"); VIEWS.a_payroll(); });
+    $("p_go").onclick = run(async () => { await api({ action: "run_payroll", period: $("p_per").value, run_date: $("p_d").value, fx: $("p_fx").value }); say("Payroll posted"); VIEWS.a_payroll(); });
+  },
+  async a_reports() {
+    V().innerHTML = `<div class="card"><div class="row"><select id="rep" style="flex:1">
+      <option value="tb">Trial balance</option><option value="pnl">Profit & loss by month</option><option value="journals">Journal entries</option>
+      <option value="africa_re">Africa Re quarterly statement</option><option value="prem_bdx">Premium bordereau</option><option value="clm_bdx">Claims bordereau</option>
+      <option value="retention">Retention (CBL 20%)</option><option value="banks">Bank accounts</option><option value="policies">All policies</option><option value="claims">Claims</option></select>${csvBtn("report")}</div>
+      <div class="tablewrap" id="t"></div></div>`;
+    const load = run(async () => { LAST = await list($("rep").value); table("t", LAST); });
+    $("rep").onchange = load; await load(); bindCsv();
+  },
+  async a_close() {
+    V().innerHTML = `<div class="card"><h2>Month end</h2><p class="note">Works out unearned premium for the gross book and Africa Re's share. Run on the last day of each month, then open the board report.</p>
+      <div class="row"><label style="flex:1">Month-end date<input type="date" id="me_d" value="${today()}"></label><button class="btn" id="me_go" style="align-self:flex-end">Run month end</button></div></div>`;
+    $("me_go").onclick = run(async () => { await api({ action: "month_end", date: $("me_d").value }); say("Month end posted"); });
+  },
+  async a_comp() {
+    LAST = await list("compliance"); const canEdit = ["accountant", "gm", "admin"].includes(ME.role);
+    V().innerHTML = `<div class="card"><div class="row" style="justify-content:space-between"><h2>Compliance — CBL, tax and treaty</h2>${csvBtn("compliance")}</div><div class="tablewrap" id="t"></div>
+      ${canEdit ? `<details><summary>Add an item</summary><div class="grid" style="margin-top:10px"><label>Item<input id="cp_i"></label><label>Regulation<input id="cp_r"></label><label>Due<input type="date" id="cp_d"></label><label>Owner<input id="cp_o"></label></div><button class="btn" id="cp_go" style="margin-top:10px">Add</button></details>` : ""}</div>`;
+    table("t", LAST, { hide: ["id"], extra: canEdit ? (r) => (r.status !== "done" ? `<button class="btn sm" data-done="${r.id}">Done</button>` : "") : null }); bindCsv();
+    document.querySelectorAll("[data-done]").forEach((b) => (b.onclick = run(async () => { const r = LAST.find((x) => x.id == b.dataset.done); await api({ action: "update_compliance", c: { id: r.id, status: "done", due_date: r.due_date, notes: r.notes } }); say("Marked done"); VIEWS.a_comp(); })));
+    if (canEdit) $("cp_go").onclick = run(async () => { await api({ action: "update_compliance", c: { item: $("cp_i").value, regulation: $("cp_r").value, due_date: $("cp_d").value, owner: $("cp_o").value } }); say("Added"); VIEWS.a_comp(); });
+  },
+
+  // ===== GM / CEO =====
+  async g_over() {
+    const { d } = await api({ action: "dashboard" });
+    V().innerHTML = kpis([
+      ["Premium written", money(d.gwp)], ["Result so far", money(d.result), d.result < 0], ["Premium owed to us", money(d.receivable)], ["Cash and bank", money(d.cash), d.cash < 0],
+      ["Claims reserve", money(d.claims_reserve)], ["Policies in force", d.policies], ["Waiting for approval", d.referred], ["Waiting for Board", d.board_pending, d.board_pending > 0],
+      ["Open claims", d.open_claims], ["Urgent alerts", d.urgent, d.urgent > 0], ["Compliance overdue", d.compliance_overdue, d.compliance_overdue > 0],
+      ["Kept by Platinum", d.retained_pct == null ? "—" : (d.retained_pct * 100).toFixed(1) + "%"], ["Product rules not signed", d.rules_unsigned, d.rules_unsigned > 0],
+    ]) + `<div class="card"><h2>Urgent</h2><div class="tablewrap" id="t"></div></div>`;
+    table("t", (await list("alerts")).filter((a) => a.sev === 1), { hide: ["sev"] });
+  },
+  async g_alerts() { LAST = await list("alerts"); V().innerHTML = `<div class="card"><div class="row" style="justify-content:space-between"><h2>Alerts</h2>${csvBtn("alerts")}</div><p class="note">Renewals due, expired policies, approvals waiting, documents not checked, premium unpaid over 60 days, compliance deadlines.</p><div class="tablewrap" id="t"></div></div>`; table("t", LAST, { hide: ["sev"] }); bindCsv(); },
+  async c_team() {
+    const u = await list("users");
+    V().innerHTML = `<div class="card"><h2>Who has access</h2><div class="tablewrap" id="t"></div></div>
+      <div class="card"><h2>Add or change a person</h2><div class="grid">
+        <label>Email<input id="u_e" type="email"></label><label>Name<input id="u_n"></label><label>Position<input id="u_t" placeholder="e.g. Sales officer"></label>
+        <label>Access<select id="u_r">
+          <option value="sales">Sales — sales section only</option><option value="underwriter">Underwriting — sales + underwriting</option>
+          <option value="accountant">Accounting — accounting section only</option><option value="gm">General Manager — sales, underwriting, accounting, GM</option>
+          <option value="board">Board — board report and above-limit approvals</option><option value="admin">CEO — everything</option><option value="viewer">View only</option></select></label>
+        <label>Approval limit (USD)<input id="u_l" inputmode="decimal" placeholder="Underwriting 250000 · GM 1000000"></label></div>
+        <p class="note">They need an AMI sign-in for the same email; ask Claude to set one up if they don't have one.</p><button class="btn" id="u_go">Save</button></div>`;
+    table("t", u);
+    $("u_go").onclick = run(async () => { await api({ action: "add_user", u: { email: $("u_e").value, name: $("u_n").value, title: $("u_t").value, role: $("u_r").value, authority_limit: $("u_l").value } }); say("Saved"); VIEWS.c_team(); });
+  },
+  async c_rules() { await rulesView(true); },
+  async c_audit() { LAST = await list("audit"); V().innerHTML = `<div class="card"><div class="row" style="justify-content:space-between"><h2>Audit trail — who did what</h2>${csvBtn("audit")}</div><div class="tablewrap" id="t"></div></div>`; table("t", LAST); bindCsv(); },
+
+  // ===== BOARD =====
+  async b_report() {
+    const def = new Date(Date.now() - 20 * 864e5).toISOString().slice(0, 7);
+    V().innerHTML = `<div class="card"><h2>Monthly board report</h2><p class="note">Built automatically from the books: results, balance sheet, policies, claims, retention, above-limit approvals, top debtors, compliance and treaty status.</p>
+      <div class="row"><label style="flex:1">Month<input type="month" id="b_m" value="${def}"></label><a class="btn" id="b_open" target="_blank" style="align-self:flex-end;display:inline-flex;align-items:center;text-decoration:none">Open report</a></div></div>`;
+    const set = () => ($("b_open").href = "board.html?m=" + $("b_m").value); $("b_m").onchange = set; set();
+  },
+  async b_approvals() { await VIEWS.u_queue(); },
 };
 
-async function loadClaims() {
-  const [cl, pol] = await Promise.all([list("claims"), list("policies")]);
-  $("polnos").innerHTML = pol.map((p) => `<option value="${p.policy_no}">${p.holder || ""}</option>`).join("");
-  $("clmnos").innerHTML = cl.map((c) => `<option value="${c.claim_no}">${c.holder || ""}</option>`).join("");
-  table("t_claims", cl, { hide: ["id"] });
-}
-$("c_save").onclick = async () => {
-  try { const r = await api({ action: "create_claim", c: { policy_no: $("c_pol").value.trim(), loss_date: $("c_loss").value, description: $("c_desc").value, reserve: $("c_res").value } });
-    say("Claim " + r.claim.claim_no + " opened"); $("c_desc").value = ""; $("c_res").value = ""; loadClaims(); } catch (e) { say(e.message, false); }
-};
-$("m_save").onclick = async () => {
-  try { await api({ action: "claim_move", m: { claim_no: $("m_clm").value.trim(), kind: $("m_kind").value, amount: $("m_amt").value, mdate: $("m_date").value || today(), close: !!$("m_close").value } });
-    say("Claim updated"); $("m_amt").value = ""; loadClaims(); } catch (e) { say(e.message, false); }
-};
-
-async function loadPayroll() {
-  const [st, ps] = await Promise.all([list("staff"), list("payroll")]);
-  table("t_staff", st.map((s) => ({ ...s, basic_salary: s.basic_salary ?? "" })), {
-    hide: ["id", "department", "currency", "basic_salary", "allowances", "active"],
-    extra: (s) => `<span class="row" style="flex-wrap:nowrap"><input style="width:100px;min-height:36px" id="sal_${s.id}" value="${s.basic_salary ?? ""}" inputmode="decimal" placeholder="Salary">
-      <input style="width:90px;min-height:36px" id="all_${s.id}" value="${s.allowances ?? 0}" inputmode="decimal" placeholder="Allow.">
-      <select style="width:90px;min-height:36px" id="act_${s.id}"><option value="1" ${s.active ? "selected" : ""}>Active</option><option value="" ${s.active ? "" : "selected"}>Left</option></select>
-      <button class="btn" style="min-height:36px" data-save="${s.id}" data-name="${encodeURIComponent(s.name)}" data-pos="${encodeURIComponent(s.position || "")}">Save</button></span>`,
-  });
-  document.querySelectorAll("[data-save]").forEach((b) => (b.onclick = async () => {
-    const id = b.dataset.save;
-    try { await api({ action: "update_staff", s: { id: Number(id), name: decodeURIComponent(b.dataset.name), position: decodeURIComponent(b.dataset.pos), basic_salary: $("sal_" + id).value, allowances: $("all_" + id).value, active: !!$("act_" + id).value } });
-      say("Saved"); loadPayroll(); } catch (e) { say(e.message, false); }
-  }));
-  table("t_payroll", ps);
-}
-$("s_add").onclick = async () => {
-  try { await api({ action: "update_staff", s: { name: $("s_name").value.trim(), position: $("s_pos").value.trim(), basic_salary: $("s_sal").value, allowances: $("s_all").value } });
-    say("Staff added"); ["s_name", "s_pos", "s_sal", "s_all"].forEach((i) => ($(i).value = "")); loadPayroll(); } catch (e) { say(e.message, false); }
-};
-$("pr_run").onclick = async () => {
-  try { await api({ action: "run_payroll", period: $("pr_period").value.trim(), run_date: $("pr_date").value, fx: $("pr_fx").value }); say("Payroll posted"); loadPayroll(); } catch (e) { say(e.message, false); }
-};
-
-async function loadReport() { lastRows = await list($("rep").value); table("t_rep", lastRows); }
-$("rep").onchange = () => loadReport().catch((e) => say(e.message, false));
-$("rep_csv").onclick = () => {
-  if (!lastRows.length) return;
-  const cols = Object.keys(lastRows[0]);
-  const csv = [cols.join(",")].concat(lastRows.map((r) => cols.map((c) => `"${String(r[c] ?? "").replace(/"/g, '""')}"`).join(","))).join("\n");
-  const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
-  a.download = `platinum-${$("rep").value}-${today()}.csv`; a.click();
-};
-
-async function loadTreaty() {
-  const [t, x, c] = await Promise.all([list("treaty"), list("xl"), list("classes")]);
-  table("t_treaty", t, { hide: ["terms_source", "notes", "reinsurer"] });
-  table("t_xl", x, { hide: ["terms_source", "treaty_year"] });
-  table("t_classes", c);
+async function rulesView(ceo) {
+  const rules = await list("rules");
+  const canEdit = ["underwriter", "gm", "admin"].includes(ME.role);
+  V().innerHTML = `<div class="card"><h2>${ceo ? "Sign off product rules" : "Product underwriting rules"}</h2>
+    <p class="note">One rule per product: rating, minimum premium, limits, deductibles, eligibility, documents, exclusions, conditions and referral triggers. ${ceo ? "Approve each product once you agree its figures." : "Changes go back to 'Proposed' until the CEO signs them off."}</p>
+    <label>Product<select id="rl_c">${rules.map((r) => `<option value="${r.class_code}">${esc(r.name)} — ${r.status === "approved" ? "approved" : "proposed"}</option>`).join("")}</select></label>
+    <div id="rl_f"></div></div>
+    <div class="card"><h2>All products</h2><div class="tablewrap" id="t"></div></div>`;
+  table("t", rules.map((r) => ({ product: r.name, status: r.status, rate: r.rate, unit: r.rate_unit, min_premium: r.min_premium, refer_above: r.max_auto_value, max_value: r.max_value, deductible: r.deductible })));
+  const F = ["rating_basis", "rate", "min_premium", "policy_fee", "max_auto_value", "max_value", "limits", "deductible", "deductible_pct", "deductible_min", "eligibility", "documents", "exclusions", "conditions", "referral_triggers"];
+  const show = () => {
+    const r = rules.find((x) => x.class_code === $("rl_c").value);
+    $("rl_f").innerHTML = `<p class="note">Status: <span class="pill ${r.status === "approved" ? "a" : "p"}">${r.status === "approved" ? "Approved by " + esc(r.approved_by) : "Proposed — for sign-off"}</span> · Pattern ${esc(r.pattern)} · Rate unit: ${esc(r.rate_unit)} · Treaty: ${esc(r.treaty_section)}</p>
+      <div class="grid">${F.map((k) => /^(rate|min_premium|policy_fee|max_auto_value|max_value|deductible_pct|deductible_min)$/.test(k)
+        ? `<label>${label(k)}<input data-f="${k}" value="${esc(r[k] ?? "")}" ${canEdit ? "" : "disabled"} inputmode="decimal"></label>`
+        : `<label style="grid-column:1/-1">${label(k)}<textarea data-f="${k}" ${canEdit ? "" : "disabled"}>${esc(r[k] ?? "")}</textarea></label>`).join("")}
+      <label>Always refer<select data-f="always_refer" ${canEdit ? "" : "disabled"}><option value="">No</option><option value="1" ${r.always_refer ? "selected" : ""}>Yes</option></select></label></div>
+      ${canEdit ? `<div class="row"><button class="btn ghost" id="rl_s">Save as proposed</button>${ME.role === "admin" ? '<button class="btn" id="rl_a">Approve and sign off</button>' : ""}</div>` : ""}`;
+    const save = (status) => run(async () => {
+      const o = { class_code: r.class_code, status }; document.querySelectorAll("[data-f]").forEach((i) => (o[i.dataset.f] = i.value)); o.always_refer = !!o.always_refer;
+      const x = await api({ action: "save_rule", r: o }); say(`${r.name}: ${x.status === "approved" ? "approved and signed off" : "saved as proposed"}`); rulesView(ceo);
+    });
+    if ($("rl_s")) $("rl_s").onclick = save("proposed"); if ($("rl_a")) $("rl_a").onclick = save("approved");
+  };
+  $("rl_c").onchange = show; show();
 }
 
 async function start() {
@@ -470,13 +476,10 @@ async function start() {
     const { data: { session } } = await sb.auth.getSession();
     if (!session) return showLogin();
     ME = (await api({ action: "me" })).me;
-    $("v-login").classList.add("hide"); $("tabs").classList.remove("hide");
-    const allowed = { admin: null, accountant: ["home","policies","uw","claims","payroll","reports","treaty"], underwriter: ["home","policies","uw","claims","reports","treaty"],
-      sales: ["home","policies","uw"], viewer: ["home","policies","uw","claims","reports","treaty"] }[ME.role];
-    if (allowed) document.querySelectorAll(".tab").forEach((t) => { if (!allowed.includes(t.dataset.v)) t.classList.add("hide"); });
-    ["me_date", "r_date", "c_loss", "m_date", "pr_date", "p_start"].forEach((i) => ($(i).value = today()));
-    $("p_start").onchange();
-    show("home");
+    $("login").classList.add("hide");
+    $("who").innerHTML = `${esc(ME.name || ME.email)}<br>${esc(ME.title || ME.role)} · <a id="out">Sign out</a>`;
+    $("out").onclick = async () => { await sb.auth.signOut(); location.reload(); };
+    showChooser();
   } catch (e) { say(e.message, false); showLogin(); }
 }
 start();

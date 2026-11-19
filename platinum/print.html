@@ -59,7 +59,7 @@ const r = await fetch(SB_URL + "/functions/v1/plat", { method: "POST", headers: 
 const j = await r.json();
 if (!r.ok || j.error) { out.textContent = j.error || "Could not load policy"; throw 0; }
 
-const { p, items, receipts, company, tpl } = j;
+const { p, items, receipts, company, tpl, rule } = j;
 const co = company || {};
 const paid = receipts.reduce((s, x) => s + Number(x.amount), 0);
 const total = Number(p.gross_premium) + Number(p.tax || 0) + Number(p.policy_fee || 0);
@@ -113,6 +113,14 @@ out.innerHTML = `<div class="page">
     <tr><td>Paid</td><td class="n">${m(paid)}</td></tr>
     <tr class="tot"><td>Balance</td><td class="n">${m(total - paid)}</td></tr>
   </tbody></table>
+
+  ${rule ? `<h2>Cover, limits and deductible</h2>
+  <table><tbody>
+    <tr><th style="width:28%">Limits</th><td>${esc(rule.limits)}</td></tr>
+    <tr><th>Deductible / excess</th><td>${esc(rule.deductible)}</td></tr>
+    <tr><th>Main exclusions</th><td>${esc(rule.exclusions)}</td></tr>
+    <tr><th>Special conditions</th><td>${esc(rule.conditions)}</td></tr>
+  </tbody></table>` : ""}
 
   <h2>Conditions</h2>
   <ol class="cond">

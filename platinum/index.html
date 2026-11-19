@@ -101,7 +101,7 @@ const sb = createClient(SB_URL, SB_KEY);
 const $ = (id) => document.getElementById(id);
 const today = () => new Date().toISOString().slice(0, 10);
 const V = () => $("view");
-let ME = null, LAST = [], TARIFF = [], CLASSES = [];
+let ME = null, LAST = [], TARIFF = [], CLASSES = [], ENDORSE_FOR = null;
 
 // ---------- helpers ----------
 function say(t, ok = true) { const m = $("msg"); m.textContent = t; m.className = "msg " + (ok ? "ok" : "err"); window.scrollTo({ top: 0, behavior: "smooth" }); if (ok) setTimeout(() => (m.className = "msg"), 7000); }
@@ -155,15 +155,15 @@ function bindCsv() {
 // ---------- sections by position ----------
 const SECTIONS = {
   sales: { name: "Sales", desc: "Quote and issue policies, take payment, print, my clients and renewals.", roles: ["sales", "underwriter", "gm", "admin"],
-    tabs: { s_new: "New policy", s_mine: "My policies", s_clients: "Clients", s_guide: "Product guide" } },
+    tabs: { s_new: "New policy", s_mine: "My policies", s_clients: "Clients", s_guide: "Product guide", u_lib: "Library" } },
   uw: { name: "Underwriting", desc: "Approve referred risks, check documents, product rules, claims and treaty.", roles: ["underwriter", "gm", "admin"],
-    tabs: { u_queue: "Approvals", u_all: "All policies", u_claims: "Claims", u_rules: "Product rules", u_treaty: "Africa Re" } },
+    tabs: { u_queue: "Approvals", u_all: "All policies", u_endorse: "Client clauses", u_word: "Standard wordings", u_rules: "Product rules", u_lib: "Policy library", u_claims: "Claims", u_treaty: "Africa Re" } },
   acct: { name: "Accounting", desc: "Receipts, debtors, commissions, payroll, month end, reports and compliance.", roles: ["accountant", "gm", "admin"],
     tabs: { a_receipts: "Receipts", a_debtors: "Debtors", a_comm: "Commissions", a_payroll: "Payroll", a_reports: "Reports", a_close: "Month end", a_comp: "Compliance" } },
   gm: { name: "General Manager", desc: "Company overview, alerts, approvals up to USD 1,000,000, compliance, board report.", roles: ["gm", "admin"],
     tabs: { g_over: "Overview", g_alerts: "Alerts", u_queue: "Approvals", a_comp: "Compliance", b_report: "Board report" } },
   ceo: { name: "CEO", desc: "Full access: overview, team and access, sign-off of product rules, audit trail.", roles: ["admin"],
-    tabs: { g_over: "Overview", c_team: "Team & access", c_rules: "Sign off rules", c_audit: "Audit trail", g_alerts: "Alerts" } },
+    tabs: { g_over: "Overview", c_team: "Team & access", c_rules: "Sign off rules", c_word: "Sign off wordings", c_audit: "Audit trail", g_alerts: "Alerts" } },
   board: { name: "Board", desc: "Monthly board report and risks above management limits for approval.", roles: ["board", "admin"],
     tabs: { b_report: "Monthly report", b_approvals: "Above-limit approvals", a_comp: "Compliance" } },
 };
@@ -326,7 +326,8 @@ const VIEWS = {
     document.querySelectorAll("[data-doc]").forEach((b) => (b.onclick = run(async () => {
       const r = await api({ action: "verify_docs", policy_no: b.dataset.doc }); say(`Documents checked · claims accepted for losses from ${String(r.claims_from).slice(0, 10)}`); VIEWS.u_queue(); })));
   },
-  async u_all() { LAST = await list("policies"); V().innerHTML = `<div class="card"><div class="row" style="justify-content:space-between"><h2>All policies</h2>${csvBtn("policies")}</div><div class="tablewrap" id="t"></div></div>`; table("t", LAST, { hide: ["id", "class_code"], extra: (r) => printBtn(r.policy_no) }); bindCsv(); },
+  async u_all() { LAST = await list("policies"); V().innerHTML = `<div class="card"><div class="row" style="justify-content:space-between"><h2>All policies</h2>${csvBtn("policies")}</div><div class="tablewrap" id="t"></div></div>`; table("t", LAST, { hide: ["id", "class_code"], extra: (r) => `<span class="row" style="flex-wrap:nowrap">${printBtn(r.policy_no)}${r.uw_status === "approved" ? ` <button class="btn sm" data-cl="${esc(r.policy_no)}">Add clause</button>` : ""}</span>` }); bindCsv();
+    document.querySelectorAll("[data-cl]").forEach((b) => (b.onclick = () => { ENDORSE_FOR = b.dataset.cl; openTab("u_endorse"); })); },
   async u_claims() {
     const cl = await list("claims");
     V().innerHTML = `<div class="card"><h2>New claim</h2><p class="note">Only for losses inside the policy period and from 15 days after documents were checked. The product's deductible applies.</p><div class="grid">
@@ -347,6 +348,67 @@ const VIEWS = {
     const [t, x] = await Promise.all([list("treaty"), list("xl")]);
     V().innerHTML = `<div class="card"><h2>Africa Re 2027 — treaty sections</h2><p class="note">Offer terms (14 Nov 2026), not yet bound.</p><div class="tablewrap" id="t1"></div></div><div class="card"><h2>Excess of loss covers</h2><div class="tablewrap" id="t2"></div></div>`;
     table("t1", t, { hide: ["terms_source", "reinsurer"] }); table("t2", x);
+  },
+
+  async u_endorse() {
+    const [pol, cl, en] = await Promise.all([list("policies"), list("clauses"), list("endorsements")]);
+    const ok = pol.filter((p) => p.uw_status === "approved");
+    V().innerHTML = `<div class="card"><h2>Add a clause to a client's policy</h2>
+      <p class="note">The standard wording stays the same for every client. Use this to add what is special for this client: a standard clause from the list, or your own wording. Extra premium is added to the policy, ceded to Africa Re at the policy's share, and printed as an endorsement.</p>
+      <div class="grid">
+        <label>Policy<select id="e_pol">${ok.map((p) => `<option value="${esc(p.policy_no)}" ${p.policy_no === ENDORSE_FOR ? "selected" : ""}>${esc(p.policy_no)} — ${esc(p.holder)} (${esc(p.class_name)})</option>`).join("")}</select></label>
+        <label>Standard clause<select id="e_cl"><option value="">— Own wording —</option>${cl.map((c) => `<option value="${c.code}">${esc(c.title)}${c.premium_basis === "flat" ? " · +USD " + c.premium_value + " each" : c.premium_basis === "pct_premium" ? " · +" + c.premium_value + "% of premium" : ""}</option>`).join("")}</select></label>
+        <label>Units (vehicles) for per-unit clauses<input id="e_units" inputmode="numeric" value="1"></label>
+        <label>Extra premium USD (blank = from the clause)<input id="e_prem" inputmode="decimal"></label>
+        <label>Effective date<input type="date" id="e_date" value="${today()}"></label>
+      </div>
+      <label>Title<input id="e_title"></label>
+      <label>Wording<textarea id="e_body" style="min-height:120px"></textarea></label>
+      <div class="row"><button class="btn" id="e_go">Add to policy</button><a class="btn ghost" id="e_print" target="_blank" style="display:inline-flex;align-items:center;text-decoration:none">Print policy</a></div></div>
+      <div class="card"><h2>Clauses added to policies</h2><div class="tablewrap" id="t"></div></div>
+      <div class="card"><h2>Standard clause list</h2><div class="tablewrap" id="t2"></div></div>`;
+    ENDORSE_FOR = null;
+    const setPrint = () => ($("e_print").href = "print.html?no=" + encodeURIComponent($("e_pol").value)); $("e_pol").onchange = setPrint; setPrint();
+    $("e_cl").onchange = () => { const c = cl.find((x) => x.code === $("e_cl").value); $("e_title").value = c ? c.title : ""; $("e_body").value = c ? c.body : ""; };
+    table("t", en, { hide: ["id"] }); table("t2", cl.map((c) => ({ title: c.title, wording: c.body, products: (c.applies_to || ["all"]).join(", "), extra_premium: c.premium_basis === "flat" ? "USD " + c.premium_value + " each" : c.premium_basis === "pct_premium" ? c.premium_value + "% of premium" : "none" })));
+    $("e_go").onclick = run(async () => {
+      const r = await api({ action: "endorse", e: { policy_no: $("e_pol").value, clause_code: $("e_cl").value, title: $("e_title").value, body: $("e_body").value, premium: $("e_prem").value, units: $("e_units").value, date: $("e_date").value } });
+      say(`Clause added to ${$("e_pol").value}${r.premium ? " · extra premium USD " + money(r.premium) : ""}`); VIEWS.u_endorse();
+    });
+  },
+  async u_word() { await wordingView(false); },
+  async c_word() { await wordingView(true); },
+  async u_lib() {
+    LAST = await list("library"); const canEdit = ["underwriter", "gm", "admin"].includes(ME.role);
+    const cats = ["Policy wording", "Proposal form", "Schedule / certificate template", "Rate card", "Underwriting guide", "Claims form", "Regulation", "Reinsurance", "Other"];
+    const classes = CLASSES.length ? CLASSES : (CLASSES = await list("classes"));
+    V().innerHTML = `<div class="card"><div class="row" style="justify-content:space-between"><h2>Policy library</h2>${csvBtn("library")}</div>
+      <p class="note">Wordings, proposal forms, certificate templates, rate cards, underwriting guides, CBL regulations and reinsurance documents. Lines marked "missing" still need a document.</p>
+      <div class="row"><select id="lb_f" style="max-width:280px"><option value="">All categories</option>${cats.map((c) => `<option>${c}</option>`).join("")}</select></div>
+      <div class="tablewrap" id="t"></div></div>
+      ${canEdit ? `<div class="card"><h2>Add or replace a document</h2><div class="grid">
+        <label>Title<input id="lb_t"></label><label>Category<select id="lb_c">${cats.map((c) => `<option>${c}</option>`).join("")}</select></label>
+        <label>Product<select id="lb_p"><option value="">All products</option>${classes.map((c) => `<option value="${c.code}">${esc(c.name)}</option>`).join("")}</select></label>
+        <label>Version<input id="lb_v" placeholder="e.g. 2027-1"></label><label>Effective date<input type="date" id="lb_d"></label>
+        <label>Replaces<select id="lb_r"><option value="">Nothing (new document)</option>${LAST.filter((x) => x.status !== "superseded").map((x) => `<option value="${x.id}">${esc(x.title)}${x.status === "missing" ? " (missing)" : ""}</option>`).join("")}</select></label>
+        <label>File (PDF, Word, image — up to 15 MB)<input type="file" id="lb_file" style="padding-top:10px"></label><label>…or a link<input id="lb_u" placeholder="https://"></label></div>
+        <label>Notes<input id="lb_n"></label><button class="btn" id="lb_go">Save to library</button></div>` : ""}`;
+    const show = () => table("t", LAST.filter((x) => !$("lb_f").value || x.category === $("lb_f").value), { hide: ["id"], extra: (r) =>
+      (r.source ? `<button class="btn ghost sm" data-open="${r.id}">Open</button>` : "") + (canEdit && r.status === "current" ? ` <button class="btn ghost sm" data-sup="${r.id}">Superseded</button>` : "") });
+    const bind = () => {
+      document.querySelectorAll("[data-open]").forEach((b) => (b.onclick = run(async () => { const w = window.open("", "_blank"); const r = await api({ action: "lib_open", id: +b.dataset.open }); if (w) w.location = r.url; else location.href = r.url; })));
+      document.querySelectorAll("[data-sup]").forEach((b) => (b.onclick = run(async () => { await api({ action: "lib_status", id: +b.dataset.sup, status: "superseded" }); say("Marked superseded"); VIEWS.u_lib(); })));
+    };
+    $("lb_f").onchange = () => { show(); bind(); }; show(); bind(); bindCsv();
+    if (canEdit) {
+      $("lb_r").onchange = () => { const x = LAST.find((y) => y.id == $("lb_r").value); if (x) { $("lb_t").value = x.title.replace(/ — policy wording$/, " — policy wording"); $("lb_c").value = x.category; $("lb_p").value = x.class_code || ""; } };
+      $("lb_go").onclick = run(async () => {
+        const f = $("lb_file").files[0]; let file = null;
+        if (f) { if (f.size > 15 * 1024 * 1024) throw new Error("File is over 15 MB"); const buf = new Uint8Array(await f.arrayBuffer()); let bin = ""; for (let i = 0; i < buf.length; i += 32768) bin += String.fromCharCode.apply(null, buf.subarray(i, i + 32768)); file = { name: f.name, type: f.type, b64: btoa(bin) }; }
+        await api({ action: "lib_add", d: { title: $("lb_t").value.trim(), category: $("lb_c").value, class_code: $("lb_p").value, version: $("lb_v").value, effective_date: $("lb_d").value, replace_id: $("lb_r").value, url: $("lb_u").value.trim(), notes: $("lb_n").value, file } });
+        say("Saved to the library"); VIEWS.u_lib();
+      });
+    }
   },
 
   // ===== ACCOUNTING =====
@@ -445,6 +507,29 @@ const VIEWS = {
   },
   async b_approvals() { await VIEWS.u_queue(); },
 };
+
+async function wordingView(ceo) {
+  const ws = await list("wordings"); const canEdit = ["underwriter", "gm", "admin"].includes(ME.role);
+  const cur = {}; ws.forEach((w) => { if (w.status !== "superseded" && (!cur[w.class_code] || w.status === "approved")) cur[w.class_code] = w; });
+  const prods = Object.values(cur);
+  V().innerHTML = `<div class="card"><h2>${ceo ? "Sign off standard wordings" : "Standard policy wordings"}</h2>
+    <p class="note">One standard wording per product, the same for every client. Client-specific additions are made as clauses (Underwriting → Client clauses) and print after the wording. Every policy keeps the wording version it was issued under.</p>
+    <label>Product<select id="w_p">${prods.map((w) => `<option value="${w.class_code}">${esc(w.product)} — ${w.status === "approved" ? "approved" : "proposed"} (v${esc(w.version)})</option>`).join("")}</select></label>
+    <div id="w_box"></div></div>
+    <div class="card"><h2>All versions</h2><div class="tablewrap" id="t"></div></div>`;
+  table("t", ws, { hide: ["id", "class_code"] });
+  const show = run(async () => {
+    const { wording: w } = await api({ action: "wording_get", class_code: $("w_p").value });
+    $("w_box").innerHTML = `<p class="note">Status: <span class="pill ${w.status === "approved" ? "a" : "p"}">${w.status === "approved" ? "Approved by " + esc(w.approved_by || "") : "Proposed — for sign-off"}</span> · Version ${esc(w.version)} · ${esc(w.source || "")}</p>
+      <label>Title<input id="w_t" value="${esc(w.title || "")}" ${canEdit ? "" : "disabled"}></label>
+      <label>Version<input id="w_v" value="" placeholder="New version name, e.g. 2027-1" ${canEdit ? "" : "disabled"}></label>
+      <label>Wording<textarea id="w_b" style="min-height:420px;font-family:inherit;font-size:14px;line-height:1.45" ${canEdit ? "" : "disabled"}>${esc(w.body)}</textarea></label>
+      ${canEdit ? `<div class="row"><button class="btn ghost" id="w_s">Save as proposed</button>${ME.role === "admin" ? '<button class="btn" id="w_a">Approve this wording</button>' : ""}</div>` : ""}`;
+    const save = (status) => run(async () => { const r = await api({ action: "wording_save", w: { class_code: $("w_p").value, title: $("w_t").value, version: $("w_v").value, body: $("w_b").value, status } }); say("Wording " + (r.status === "approved" ? "approved — new policies use it from now" : "saved as proposed")); wordingView(ceo); });
+    if ($("w_s")) $("w_s").onclick = save("proposed"); if ($("w_a")) $("w_a").onclick = save("approved");
+  });
+  $("w_p").onchange = show; show();
+}
 
 async function rulesView(ceo) {
   const rules = await list("rules");

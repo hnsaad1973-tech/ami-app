@@ -59,7 +59,7 @@ const r = await fetch(SB_URL + "/functions/v1/plat", { method: "POST", headers: 
 const j = await r.json();
 if (!r.ok || j.error) { out.textContent = j.error || "Could not load policy"; throw 0; }
 
-const { p, items, receipts, company, tpl, rule } = j;
+const { p, items, receipts, company, tpl, rule, wording, endorsements } = j;
 const co = company || {};
 const paid = receipts.reduce((s, x) => s + Number(x.amount), 0);
 const total = Number(p.gross_premium) + Number(p.tax || 0) + Number(p.policy_fee || 0);
@@ -133,7 +133,13 @@ out.innerHTML = `<div class="page">
 
   ${certs}
 
+  ${(endorsements || []).length ? `<h2>Endorsements — special terms for this client</h2>
+  ${endorsements.map((e) => `<div style="margin-bottom:8px"><b>Endorsement ${e.endorsement_no}: ${esc(e.title)}</b> <span style="color:#556">(effective ${d(e.effective_date)}${Number(e.additional_premium) ? " · additional premium USD " + m(e.additional_premium) : ""})</span><div class="cond" style="white-space:pre-wrap">${esc(e.body)}</div></div>`).join("")}
+  <p class="cond">Endorsements form part of this Policy. Where an Endorsement conflicts with the standard wording, the Endorsement prevails.</p>` : ""}
+
   <div class="sign"><div>For and on behalf of Platinum Insurers, Inc.</div><div>Insured</div></div>
+  ${wording ? `<div style="page-break-before:always"></div><h2>Policy wording — ${esc(wording.title || p.class_name)} (version ${esc(wording.version)})</h2>
+  <div class="cond" style="white-space:pre-wrap;font-size:11px;line-height:1.5">${esc(wording.body)}</div>` : ""}
   <div class="foot">Issued ${d(p.issue_date)} · ${approved && p.approved_by ? "Approved by " + esc(p.approved_by) + " · " : ""}Verify this policy with Platinum Insurers at +231 775 502 780</div>
 </div>`;
 document.title = p.policy_no + " — " + (p.holder || "Policy");

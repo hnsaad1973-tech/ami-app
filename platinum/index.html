@@ -65,7 +65,7 @@
 <body>
 <header>
   <div class="top">
-    <div><div class="logo" id="home">PLATINUM</div><div class="sub" id="where">Insurers, Inc.</div></div>
+    <div class="row" style="flex-wrap:nowrap;gap:10px"><button class="btn ghost sm hide" id="homeBtn" title="Back to sections">&#8962; Home</button><div><div class="logo" id="home">PLATINUM</div><div class="sub" id="where">Insurers, Inc.</div></div></div>
     <div class="who" id="who"></div>
   </div>
   <nav class="tabs hide" id="tabs"></nav>
@@ -170,7 +170,7 @@ const SECTIONS = {
 
 function showLogin() { $("login").classList.remove("hide"); $("chooser").classList.add("hide"); $("tabs").classList.add("hide"); V().innerHTML = ""; }
 function showChooser() {
-  V().innerHTML = ""; $("tabs").classList.add("hide"); $("where").textContent = "Insurers, Inc.";
+  V().innerHTML = ""; $("tabs").classList.add("hide"); $("where").textContent = "Insurers, Inc."; $("homeBtn").classList.add("hide");
   const mine = Object.entries(SECTIONS).filter(([, s]) => s.roles.includes(ME.role));
   if (mine.length === 1) return openSection(mine[0][0]);
   $("secs").innerHTML = mine.map(([k, s]) => `<button class="sec" data-sec="${k}"><b>${s.name}</b><span>${s.desc}</span></button>`).join("");
@@ -179,7 +179,8 @@ function showChooser() {
 }
 function openSection(k) {
   const s = SECTIONS[k];
-  $("chooser").classList.add("hide"); $("where").textContent = s.name + " · tap PLATINUM for sections";
+  $("chooser").classList.add("hide"); $("where").textContent = s.name;
+  if (Object.values(SECTIONS).filter((x) => x.roles.includes(ME.role)).length > 1) $("homeBtn").classList.remove("hide");
   $("tabs").innerHTML = Object.entries(s.tabs).map(([id, n], i) => `<button class="tab" data-t="${id}" aria-pressed="${i === 0}">${n}</button>`).join("");
   $("tabs").classList.remove("hide");
   document.querySelectorAll("[data-t]").forEach((b) => (b.onclick = () => openTab(b.dataset.t)));
@@ -191,6 +192,7 @@ function openTab(id) {
   run(VIEWS[id])();
 }
 $("home").onclick = () => ME && showChooser();
+$("homeBtn").onclick = () => ME && showChooser();
 
 // ---------- sign in ----------
 $("sendcode").onclick = run(async () => {

@@ -159,9 +159,9 @@ const SECTIONS = {
   uw: { name: "Underwriting", desc: "Approve referred risks, check documents, product rules, claims and treaty.", roles: ["underwriter", "gm", "admin"],
     tabs: { u_queue: "Approvals", u_all: "All policies", u_endorse: "Client clauses", u_word: "Standard wordings", u_rules: "Product rules", u_lib: "Policy library", u_claims: "Claims", u_treaty: "Africa Re" } },
   acct: { name: "Accounting", desc: "Receipts, debtors, commissions, payroll, month end, reports and compliance.", roles: ["accountant", "gm", "admin"],
-    tabs: { a_receipts: "Receipts", a_debtors: "Debtors", a_comm: "Commissions", a_payroll: "Payroll", a_reports: "Reports", a_close: "Month end", a_comp: "Compliance" } },
-  gm: { name: "General Manager", desc: "Company overview, alerts, approvals up to USD 1,000,000, compliance, board report.", roles: ["gm", "admin"],
-    tabs: { g_over: "Overview", g_alerts: "Alerts", u_queue: "Approvals", a_comp: "Compliance", b_report: "Board report" } },
+    tabs: { a_receipts: "Receipts", a_debtors: "Debtors", a_comm: "Commissions", a_payroll: "Payroll", a_reports: "Reports", a_close: "Month end", g_cbl: "CBL quarterly", g_are: "Africa Re quarterly", a_comp: "Compliance" } },
+  gm: { name: "General Manager", desc: "Company overview, alerts, approvals up to USD 1,000,000, CBL and Africa Re quarterly reports, compliance, board report.", roles: ["gm", "admin"],
+    tabs: { g_over: "Overview", g_alerts: "Alerts", u_queue: "Approvals", g_cbl: "CBL quarterly", g_are: "Africa Re quarterly", a_comp: "Compliance", b_report: "Board report" } },
   ceo: { name: "CEO", desc: "Full access: overview, team and access, sign-off of product rules, audit trail.", roles: ["admin"],
     tabs: { g_over: "Overview", c_team: "Team & access", c_rules: "Sign off rules", c_word: "Sign off wordings", c_audit: "Audit trail", g_alerts: "Alerts" } },
   board: { name: "Board", desc: "Monthly board report and risks above management limits for approval.", roles: ["board", "admin"],
@@ -506,7 +506,23 @@ const VIEWS = {
     const set = () => ($("b_open").href = "board.html?m=" + $("b_m").value); $("b_m").onchange = set; set();
   },
   async b_approvals() { await VIEWS.u_queue(); },
+  async g_cbl() { quarterView("cbl", "Quarterly return to the Central Bank of Liberia", "Premium and claims by class, income statement, financial position, capital and solvency against the USD 1,500,000 minimum, retention, reinsurance arrangements, large risks and compliance. Signed by the Accountant, GM and Chairman."); },
+  async g_are() { quarterView("africare", "Quarterly submission to Africa Re", "Treaty account by section with balance due, premium bordereau, claims bordereau with cash calls, excess of loss instalments and premium against estimate."); },
 };
+
+function quarterView(page, title, desc) {
+  const now = new Date(), opts = [];
+  for (let i = 0; i < 8; i++) {
+    const q = new Date(Date.UTC(now.getUTCFullYear(), Math.floor(now.getUTCMonth() / 3) * 3 - 3 * i, 1));
+    if (q < new Date(Date.UTC(2026, 6, 1))) break;
+    const label = `Q${Math.floor(q.getUTCMonth() / 3) + 1} ${q.getUTCFullYear()}` + (i === 0 ? " (current, to date)" : "");
+    opts.push(`<option value="${q.toISOString().slice(0, 10)}"${i === 1 ? " selected" : ""}>${label}</option>`);
+  }
+  V().innerHTML = `<div class="card"><h2>${title}</h2><p class="note">${desc} Built from the books — nothing to type. Print or save as PDF to send.</p>
+    <div class="row"><label style="flex:1">Quarter<select id="q_q">${opts.join("")}</select></label>
+    <a class="btn" id="q_open" target="_blank" style="align-self:flex-end;display:inline-flex;align-items:center;text-decoration:none">Open report</a></div></div>`;
+  const set = () => ($("q_open").href = page + ".html?q=" + $("q_q").value); $("q_q").onchange = set; set();
+}
 
 async function wordingView(ceo) {
   const ws = await list("wordings"); const canEdit = ["underwriter", "gm", "admin"].includes(ME.role);

@@ -910,7 +910,7 @@ const VIEWS = {
     V().innerHTML = kpis([["Checks passed", (d.checks.length - bad) + " of " + d.checks.length, bad > 0], ["As at", String(d.as_at)]]) +
       `<div class="card"><div class="row" style="justify-content:space-between"><div><h2>${bad ? "⚠ " + bad + " check" + (bad > 1 ? "s" : "") + " need attention" : "✓ The books agree"}</h2><p class="note">Run this before closing each month. Each line compares the account in the books with the detail behind it.</p></div>
         <label>As at<input type="date" id="bc_d" value="${esc(String(d.as_at))}"></label></div>
-        <div class="tablewrap"><table><thead><tr><th></th><th>Check</th><th>Result</th></tr></thead><tbody>${d.checks.map((c) => `<tr><td style="font-size:18px">${c.ok ? "✓" : "⚠"}</td><td><b>${esc(c.check)}</b></td><td class="wrap" style="color:${c.ok ? "inherit" : "var(--red)"}">${esc(c.note || "")}</td></tr>`).join("")}</tbody></table></div></div>`;
+        <div class="tablewrap"><table><thead><tr><th></th><th>Check</th><th>Result</th></tr></thead><tbody>${d.checks.map((c) => `<tr><td style="font-size:18px">${c.pending ? "⏳" : c.ok ? "✓" : "⚠"}</td><td><b>${esc(c.check)}</b></td><td class="wrap" style="color:${c.ok ? "inherit" : "var(--red)"}">${esc(c.note || "")}</td></tr>`).join("")}</tbody></table></div></div>`;
     $("bc_d").onchange = run(async () => { BC_DATE = $("bc_d").value; await VIEWS.a_check(); });
   },
   // ===== Reinsurer accounts (v5.3) =====

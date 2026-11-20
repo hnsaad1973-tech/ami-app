@@ -805,7 +805,15 @@ const VIEWS = {
     table("t", LAST); bindCsv();
     $("r_go").onclick = run(async () => { await api({ action: "add_receipt", r: { policy_no: $("r_pol").value, amount: $("r_amt").value, rdate: $("r_date").value, method: $("r_m").value, ref: $("r_ref").value } }); say("Receipt posted"); VIEWS.a_receipts(); });
   },
-  async a_debtors() { LAST = await list("debtors"); V().innerHTML = `<div class="card"><div class="row" style="justify-content:space-between"><h2>Premium owed to Platinum</h2>${csvBtn("debtors")}</div><div class="tablewrap" id="t"></div></div>`; table("t", LAST); bindCsv(); },
+  async a_debtors() {
+    LAST = (await bapi({ action: "debtors" })).rows;
+    const by = {}; LAST.forEach((r) => { by[r.agent] = (by[r.agent] || 0) + Number(r.balance || 0); });
+    V().innerHTML = kpis([["Total owed (USD)", money(LAST.reduce((a, r) => a + Number(r.balance || 0), 0))], ["Through agents (USD)", money(LAST.filter((r) => r.agent !== "Direct").reduce((a, r) => a + Number(r.balance || 0), 0))], ["Direct (USD)", money(by.Direct || 0)], ["Over 60 days", LAST.filter((r) => r.days_outstanding > 60).length, LAST.some((r) => r.days_outstanding > 60)]]) +
+      `<div class="card"><h2>Owed by agent / broker</h2><div class="tablewrap" id="t1"></div></div>
+      <div class="card"><div class="row" style="justify-content:space-between"><h2>Premium owed to Platinum</h2>${csvBtn("debtors")}</div><div class="row"><select id="db_ag"><option value="">All agents and direct</option>${Object.keys(by).map((k) => `<option>${esc(k)}</option>`).join("")}</select></div><div class="tablewrap" id="t"></div></div>`;
+    table("t1", Object.entries(by).map(([agent, owed]) => ({ agent, policies: LAST.filter((r) => r.agent === agent).length, owed })), { nosearch: true });
+    const draw = () => table("t", LAST.filter((r) => !$("db_ag").value || r.agent === $("db_ag").value)); $("db_ag").onchange = draw; draw(); bindCsv();
+  },
   async a_comm() {
     const pay = ["accountant", "admin"].includes(ME.role);
     const [{ rows }, { books: bk, payments }] = await Promise.all([gapi({ action: "agent_list" }), gapi({ action: "agent_books" })]);

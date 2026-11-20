@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Board report — Platinum Insurers</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Space+Grotesk:wght@700&display=swap" rel="stylesheet">
+<style>
+  @page{size:A4;margin:14mm}
+  *{box-sizing:border-box}
+  body{margin:0;background:#E9ECF1;font-family:Inter,Arial,sans-serif;color:#1A2233;font-size:12.5px}
+  .bar{position:sticky;top:0;background:#0B1B33;padding:10px;display:flex;gap:8px;justify-content:center}
+  .bar button{min-height:42px;padding:0 18px;border-radius:10px;border:none;background:#D4A84B;color:#0B1B33;font-weight:700;font-size:15px}
+  .page{background:#fff;width:210mm;max-width:100%;margin:14px auto;padding:14mm;box-shadow:0 2px 12px rgba(0,0,0,.12)}
+  .head{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:3px solid #0B1B33;padding-bottom:10px}
+  .brand{font-family:'Space Grotesk',Arial,sans-serif;font-size:22px;letter-spacing:2px;color:#0B1B33}
+  .brand small{display:block;font-family:Inter,Arial;font-size:11px;letter-spacing:0;color:#556;font-weight:400}
+  .t{text-align:right}.t h1{margin:0;font-size:17px}.t div{color:#B08A2E;font-weight:700;margin-top:3px}
+  h2{font-size:12px;letter-spacing:1px;text-transform:uppercase;color:#0B1B33;border-bottom:1px solid #CCD3DE;padding-bottom:4px;margin:18px 0 8px}
+  .lead{font-size:13.5px;line-height:1.5;margin:12px 0 0}
+  .kp{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:10px}
+  .kp div{border:1px solid #CCD3DE;border-radius:8px;padding:8px}.kp b{display:block;font-size:16px;margin-top:2px}.kp span{font-size:10.5px;color:#556}
+  table{width:100%;border-collapse:collapse}
+  th,td{border:1px solid #CCD3DE;padding:5px 7px;text-align:left;vertical-align:top}
+  th{background:#F1F3F7;font-size:11px}
+  td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
+  .tot td{font-weight:700;background:#FAF6EC}
+  .red{color:#B3261E;font-weight:700}.green{color:#1F7A3A;font-weight:700}
+  .note{font-size:11px;color:#556}
+  .sign{display:flex;justify-content:space-between;margin-top:34px}.sign div{width:30%;border-top:1px solid #333;padding-top:4px;font-size:11px}
+  .err{max-width:600px;margin:40px auto;background:#fff;padding:20px;border-radius:10px}
+  @media print{body{background:#fff}.bar{display:none}.page{box-shadow:none;margin:0;width:auto;padding:0}}
+</style>
+</head>
+<body>
+<div class="bar"><button onclick="window.print()">Print / Save as PDF</button></div>
+<div id="out" class="err">Loading…</div>
+<script type="module">
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+const SB_URL = "https://xxdqrvcpxhsepwzfmnjs.supabase.co";
+const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh4ZHFydmNweGhzZXB3emZtbmpzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQ2MTQxNzQsImV4cCI6MjExMDE5MDE3NH0.ZjN4PXCs7IilwaO16o6kg1Bu1K66V_vfoUILHMjgGBU";
+const sb = createClient(SB_URL, SB_KEY);
+const out = document.getElementById("out");
+const esc = (v) => (v === null || v === undefined ? "" : String(v).replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c])));
+const m = (v) => Number(v || 0).toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+const pct = (v) => (v === null || v === undefined || isNaN(v) ? "—" : (Number(v) * 100).toFixed(1) + "%");
+
+const month = new URLSearchParams(location.search).get("m") || new Date(Date.now() - 20 * 864e5).toISOString().slice(0, 7);
+const { data: { session } } = await sb.auth.getSession();
+if (!session) { out.innerHTML = 'Please sign in on the <a href="./">Platinum</a> page first.'; throw 0; }
+const r = await fetch(SB_URL + "/functions/v1/plat", { method: "POST", headers: { "Content-Type": "application/json", Authorization: "Bearer " + session.access_token, apikey: SB_KEY }, body: JSON.stringify({ action: "board_report", month }) });
+const j = await r.json();
+if (!r.ok || j.error) { out.textContent = j.error || "Could not load the report"; throw 0; }
+const R = j.report, M = R.month_figures || {}, Y = R.ytd_figures || {}, B = R.balance || {}, P = R.policies || {}, C = R.claims || {};
+const title = new Date(month + "-01T00:00:00").toLocaleDateString("en-GB", { month: "long", year: "numeric" });
+const net = (x) => Number(x.earned_gross || 0) + Number(x.reinsurance || 0);
+const incurred = (x) => Number(x.claims_gross || 0) - Number(x.ri_recoveries || 0);
+const lr = (x) => (net(x) ? incurred(x) / net(x) : null);
+const row = (l, a, b, bold) => `<tr${bold ? ' class="tot"' : ""}><td>${l}</td><td class="n">${m(a)}</td><td class="n">${m(b)}</td></tr>`;
+const ret = R.retention?.retained_pct;
+const overdue = (R.compliance || []).filter((c) => c.status === "overdue");
+const pending = (R.above_limit_approvals || []).filter((a) => a.status === "referred");
+
+const lead = `${title}: premium written USD ${m(M.gwp)} (year to date ${m(Y.gwp)}); result USD ${m(M.result)} for the month and ${m(Y.result)} for the year. `
+  + `${P.in_force || 0} policies in force, ${C.open || 0} open claims. `
+  + (pending.length ? `${pending.length} risk(s) above management limits await Board approval. ` : "No risks await Board approval. ")
+  + (overdue.length ? `${overdue.length} compliance item(s) overdue.` : "No compliance items overdue.");
+
+out.className = "";
+out.innerHTML = `<div class="page">
+<div class="head"><div class="brand">PLATINUM INSURERS, INC.<small>Monthly report to the Board of Directors · Stop & Shop Building, Randall Street, Monrovia</small></div>
+<div class="t"><h1>BOARD REPORT</h1><div>${title}</div></div></div>
+<p class="lead">${esc(lead)}</p>
+
+<div class="kp">
+ <div><span>Premium written (month)</span><b>${m(M.gwp)}</b></div><div><span>Result (month)</span><b class="${M.result < 0 ? "red" : "green"}">${m(M.result)}</b></div>
+ <div><span>Result (year to date)</span><b class="${Y.result < 0 ? "red" : "green"}">${m(Y.result)}</b></div><div><span>Loss ratio (YTD, net)</span><b>${pct(lr(Y))}</b></div>
+ <div><span>Cash and bank</span><b class="${B.cash < 0 ? "red" : ""}">${m(B.cash)}</b></div><div><span>Premium owed to us</span><b>${m(B.premium_receivable)}</b></div>
+ <div><span>Kept by Platinum (CBL ≥ 20%)</span><b class="${ret !== undefined && ret < 0.2 ? "red" : ""}">${pct(ret)}</b></div><div><span>Africa Re treaty</span><b>${R.treaty?.bound ? "Bound" : "Not bound"}</b></div>
+</div>
+
+<h2>1. Results (USD)</h2>
+<table><thead><tr><th></th><th class="n">${title}</th><th class="n">Year to date</th></tr></thead><tbody>
+${row("Gross premium written", M.gwp, Y.gwp)}
+${row("Gross premium earned", M.earned_gross, Y.earned_gross)}
+${row("Reinsurance (ceded, net of share of unearned)", M.reinsurance, Y.reinsurance)}
+${row("Net premium earned", net(M), net(Y), true)}
+${row("Claims incurred (gross)", -(M.claims_gross || 0), -(Y.claims_gross || 0))}
+${row("Reinsurance recoveries", M.ri_recoveries, Y.ri_recoveries)}
+${row("Commission paid to brokers", -(M.commission || 0), -(Y.commission || 0))}
+${row("Commission and other income", M.other_income, Y.other_income)}
+${row("Operating expenses (salaries, rent, etc.)", -(M.expenses || 0), -(Y.expenses || 0))}
+${row("Result", M.result, Y.result, true)}
+</tbody></table>
+
+<h2>2. Balance sheet items at month end (USD)</h2>
+<table><tbody>
+<tr><td>Cash and bank</td><td class="n">${m(B.cash)}</td></tr><tr><td>Premium owed by clients</td><td class="n">${m(B.premium_receivable)}</td></tr>
+<tr><td>Unearned premium reserve</td><td class="n">${m(B.unearned_premium)}</td></tr><tr><td>Claims reserves</td><td class="n">${m(B.claims_reserve)}</td></tr>
+<tr><td>Owed to Africa Re</td><td class="n">${m(B.africa_re_payable)}</td></tr><tr class="tot"><td>Shareholders' funds plus result (as booked)</td><td class="n">${m(B.equity_and_result)}</td></tr>
+</tbody></table>
+<p class="note">Paid-up capital is not yet booked in the system; CBL minimum for non-life is USD 1,500,000.</p>
+
+<h2>3. Underwriting and claims</h2>
+<table><tbody>
+<tr><td>Policies issued in the month</td><td class="n">${P.issued || 0}</td></tr><tr><td>Policies in force</td><td class="n">${P.in_force || 0}</td></tr>
+<tr><td>Referred, waiting for decision</td><td class="n">${P.referred_open || 0}</td></tr><tr><td>Declined in the month</td><td class="n">${P.declined_month || 0}</td></tr>
+<tr><td>Claims reported in the month</td><td class="n">${C.opened || 0}</td></tr><tr><td>Claims open</td><td class="n">${C.open || 0}</td></tr>
+</tbody></table>
+
+<h2>4. Risks above management limits — for Board decision or noting</h2>
+${(R.above_limit_approvals || []).length ? `<table><thead><tr><th>Policy</th><th>Client</th><th>Class</th><th class="n">Sum insured</th><th class="n">Premium</th><th>Status</th><th>Reason</th></tr></thead><tbody>
+${R.above_limit_approvals.map((a) => `<tr><td>${esc(a.policy_no)}</td><td>${esc(a.client)}</td><td>${esc(a.class)}</td><td class="n">${m(a.sum_insured)}</td><td class="n">${m(a.premium)}</td><td>${a.status === "referred" ? '<span class="red">FOR APPROVAL</span>' : esc(a.status) + (a.decided_by ? " — " + esc(a.decided_by) : "")}</td><td>${esc(a.reason)}</td></tr>`).join("")}</tbody></table>`
+  : `<p class="note">None this month.</p>`}
+
+<h2>5. Largest balances owed by clients</h2>
+${(R.top_debtors || []).length ? `<table><thead><tr><th>Client</th><th class="n">Owed (USD)</th></tr></thead><tbody>${R.top_debtors.map((d) => `<tr><td>${esc(d.holder)}</td><td class="n">${m(d.balance)}</td></tr>`).join("")}</tbody></table>` : `<p class="note">None.</p>`}
+
+<h2>6. Compliance — CBL, tax and treaty</h2>
+<table><thead><tr><th>Item</th><th>Due</th><th>Owner</th><th>Status</th></tr></thead><tbody>
+${(R.compliance || []).map((c) => `<tr><td>${esc(c.item)}</td><td>${esc(c.due || "")}</td><td>${esc(c.owner || "")}</td><td class="${c.status === "overdue" ? "red" : c.status === "done" ? "green" : ""}">${esc(c.status)}</td></tr>`).join("")}
+</tbody></table>
+
+<h2>7. Reinsurance</h2>
+<p>Africa Re 2027 programme: ${R.treaty?.bound ? "bound" : "<b>not yet bound</b> — terms in the system are Africa Re's offer"} (${esc(R.treaty?.source || "")}).</p>
+
+<div class="sign"><div>Prepared by — Accountant</div><div>Reviewed — General Manager</div><div>Noted — Chairman of the Board</div></div>
+<p class="note" style="margin-top:14px;text-align:center">Generated from the Platinum accounting system on ${new Date().toLocaleString("en-GB")}. Figures are as booked; unaudited.</p>
+</div>`;
+document.title = "Board report " + title;
+</script>
+</body>
+</html>

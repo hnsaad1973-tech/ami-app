@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Policy — Platinum Insurers</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Space+Grotesk:wght@700&display=swap" rel="stylesheet">
+<style>
+  @page{size:A4;margin:14mm}
+  *{box-sizing:border-box}
+  body{margin:0;background:#E9ECF1;font-family:Inter,Arial,sans-serif;color:#1A2233;font-size:12.5px}
+  .bar{position:sticky;top:0;background:#0B1B33;padding:10px;display:flex;gap:8px;justify-content:center}
+  .bar button{min-height:42px;padding:0 18px;border-radius:10px;border:none;background:#D4A84B;color:#0B1B33;font-weight:700;font-size:15px}
+  .page{background:#fff;width:210mm;max-width:100%;margin:14px auto;padding:14mm;box-shadow:0 2px 12px rgba(0,0,0,.12)}
+  .head{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #0B1B33;padding-bottom:10px}
+  .brand{font-family:'Space Grotesk',Arial,sans-serif;font-size:24px;letter-spacing:2px;color:#0B1B33}
+  .brand small{display:block;font-family:Inter,Arial;font-size:11px;letter-spacing:0;color:#556;font-weight:400;margin-top:2px}
+  .doc{text-align:right}
+  .doc h1{margin:0;font-size:17px;color:#0B1B33}
+  .doc .no{font-size:15px;font-weight:700;color:#B08A2E;margin-top:4px}
+  h2{font-size:12px;letter-spacing:1px;text-transform:uppercase;color:#0B1B33;border-bottom:1px solid #CCD3DE;padding-bottom:4px;margin:16px 0 8px}
+  .kv{display:grid;grid-template-columns:1fr 1fr;gap:4px 18px}
+  .kv div{display:flex;gap:8px}.kv b{min-width:120px;color:#556;font-weight:600}
+  table{width:100%;border-collapse:collapse;margin-top:4px}
+  th,td{border:1px solid #CCD3DE;padding:5px 7px;text-align:left;vertical-align:top}
+  th{background:#F1F3F7;font-size:11px}
+  td.n{text-align:right}
+  .tot td{font-weight:700;background:#FAF6EC}
+  .stamp{display:inline-block;border:2px solid;padding:3px 10px;border-radius:6px;font-weight:700;letter-spacing:1px}
+  .ok{color:#1F7A3A}.warn{color:#B3261E}
+  .cond{font-size:11px;line-height:1.45;color:#333}
+  .cond li{margin-bottom:3px}
+  .sign{display:flex;justify-content:space-between;margin-top:30px}
+  .sign div{width:45%;border-top:1px solid #333;padding-top:4px;font-size:11px}
+  .seal{border:3px double #1F7A3A;color:#1F7A3A;border-radius:10px;padding:8px 12px;display:inline-block;transform:rotate(-3deg);font-size:11px;line-height:1.45;margin-top:14px}
+  .seal b{font-size:15px;letter-spacing:2px;display:block}
+  .void{position:fixed;top:40%;left:0;right:0;text-align:center;font-size:54px;font-weight:700;color:rgba(179,38,30,.16);transform:rotate(-20deg);pointer-events:none;z-index:5}
+  .cert{border:2px solid #0B1B33;border-radius:10px;padding:12px;margin-top:16px;page-break-inside:avoid}
+  .cert .t{font-weight:700;color:#0B1B33;font-size:14px;margin-bottom:6px}
+  .foot{margin-top:18px;font-size:10px;color:#667;text-align:center;border-top:1px solid #CCD3DE;padding-top:6px}
+  .err{max-width:600px;margin:40px auto;background:#fff;padding:20px;border-radius:10px}
+  @media print{body{background:#fff}.bar{display:none}.page{box-shadow:none;margin:0;width:auto;padding:0}}
+</style>
+</head>
+<body>
+<div class="bar"><button onclick="window.print()">Print / Save as PDF</button><button onclick="history.length>1?history.back():window.close()" style="background:transparent;border:1px solid #D4A84B;color:#D4A84B">Close</button></div>
+<div id="out" class="err">Loading…</div>
+<script type="module">
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+const SB_URL = "https://xxdqrvcpxhsepwzfmnjs.supabase.co";
+const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh4ZHFydmNweGhzZXB3emZtbmpzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQ2MTQxNzQsImV4cCI6MjExMDE5MDE3NH0.ZjN4PXCs7IilwaO16o6kg1Bu1K66V_vfoUILHMjgGBU";
+const sb = createClient(SB_URL, SB_KEY);
+const esc = (v) => (v === null || v === undefined ? "" : String(v).replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c])));
+const m = (v) => Number(v || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const d = (v) => (v ? new Date(String(v).slice(0, 10) + "T00:00:00").toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "");
+const out = document.getElementById("out");
+
+const no = new URLSearchParams(location.search).get("no");
+const { data: { session } } = await sb.auth.getSession();
+if (!session) { out.innerHTML = 'Please sign in first on the <a href="./">Platinum Accounts</a> page, then open this policy again.'; throw 0; }
+const r = await fetch(SB_URL + "/functions/v1/plat", { method: "POST", headers: { "Content-Type": "application/json", Authorization: "Bearer " + session.access_token, apikey: SB_KEY }, body: JSON.stringify({ action: "policy_detail", policy_no: no }) });
+const j = await r.json();
+if (!r.ok || j.error) { out.textContent = j.error || "Could not load policy"; throw 0; }
+
+const { p, items, receipts, company, tpl, rule, wording, endorsements, signed } = j;
+try { const SL = await import("./sharelock.js?v=1"); await SL.lockPage({ url: SB_URL, key: SB_KEY, session, kind: "policy", ref: p.policy_no }); } catch (_) {}
+// sticker and Brown Card numbers per vehicle (same order as the schedule); not shown if this user cannot see the register
+let CN = [];
+try { const rc = await fetch(SB_URL + "/functions/v1/platkyc", { method: "POST", headers: { "Content-Type": "application/json", Authorization: "Bearer " + session.access_token, apikey: SB_KEY }, body: JSON.stringify({ action: "cert_policy", policy_no: p.policy_no }) });
+  const jc = await rc.json(); if (rc.ok && jc.items) CN = jc.items; } catch (_) {}
+const co = company || {};
+const paid = receipts.reduce((s, x) => s + Number(x.amount), 0);
+const total = Number(p.gross_premium) + Number(p.tax || 0) + Number(p.policy_fee || 0);
+const isMotorTPL = ["MTPL", "MTPFT", "MFLEET", "MCOMP", "PLANT"].includes(p.class_code);
+const approved = p.uw_status === "approved";
+const STG = { submitted: "WITH UNDERWRITING", referred: "WITH UNDERWRITING", returned: "RETURNED TO SALES", uw_approved: "WITH GENERAL MANAGER", board: "WITH THE BOARD" };
+const status = !approved ? `<span class="stamp warn">${p.uw_status === "declined" ? "DECLINED" : (STG[p.uw_status] || "NOT APPROVED") + " — NOT VALID"}</span>`
+  : p.status === "active" ? `<span class="stamp ok">PAID — COVER IN FORCE</span>`
+  : p.lapsed_at ? `<span class="stamp warn">LAPSED — PREMIUM NOT PAID IN TIME — NO COVER</span>`
+  : `<span class="stamp warn">NOT IN FORCE UNTIL PAID${p.pay_by ? " — PAY BY " + d(p.pay_by) : ""}</span>`;
+const claimsFrom = p.docs_verified_at ? d(new Date(new Date(p.docs_verified_at).getTime() + 15 * 864e5).toISOString()) : null;
+
+const itemRows = items.length ? items.map((i, k) => `<tr><td>${k + 1}</td><td>${esc(i.description || i.make_model)}</td><td>${esc(i.plate_no)}</td><td>${esc(i.chassis_vin)}</td><td>${esc(i.year)}</td><td>${esc(i.use_category || i.location)}</td><td class="n">${Number(i.sum_insured) ? m(i.sum_insured) : ""}</td><td class="n">${m(i.premium)}</td></tr>`).join("")
+  : `<tr><td colspan="8">As per schedule held by the company${p.source && p.source.startsWith("Opening") ? " (" + esc(p.source) + ")" : ""}</td></tr>`;
+
+const certs = isMotorTPL && approved ? (items.length ? items : [{}]).map((i, k) => `
+  <div class="cert">
+    <div class="t">CERTIFICATE OF MOTOR INSURANCE — THIRD PARTY LIABILITY</div>
+    <div class="kv">
+      <div><b>Certificate for</b>${esc(p.policy_no)}</div><div><b>Insured</b>${esc(p.holder)}</div>
+      <div><b>Vehicle</b>${esc(i.make_model || i.description)}</div><div><b>Plate no.</b>${esc(i.plate_no)}</div>
+      <div><b>Chassis / VIN</b>${esc(i.chassis_vin)}</div><div><b>Use</b>${esc(i.use_category)}</div>
+      <div><b>Valid from</b>${d(p.start_date)}</div><div><b>Valid to</b>${d(p.end_date)}</div>
+      <div><b>Sticker no.</b>${esc((CN[k] || {}).sticker || "")}</div><div><b>ECOWAS Brown Card no.</b>${esc((CN[k] || {}).brown_card || "")}</div>
+    </div>
+    <p class="cond" style="margin:8px 0 0">Limits of liability (statutory): death or bodily injury USD ${m(tpl?.death_injury_per_person || 10000)} per person, USD ${m(tpl?.death_injury_two_or_more || 20000)} for two or more persons; third-party property damage USD ${m(tpl?.property_damage || 5000)}.
+    This certificate is valid only when the premium has been paid (CBL Regulation INS/008/2016 — No Premium, No Cover).</p>
+  </div>`).join("") : "";
+
+out.className = "";
+if (!approved) document.body.insertAdjacentHTML("beforeend", '<div class="void">NOT VALID — NOT APPROVED</div>');
+out.innerHTML = `<div class="page">
+  <div class="head">
+    <div class="brand">PLATINUM INSURERS, INC.<small>${esc(co.office || "Stop & Shop Building, Randall Street, Monrovia, Liberia")}<br>Tel +231 770 258 520 · +231 775 502 780 · platinuminsurersliberiainc@gmail.com<br>Business Registration No. ${esc(co.business_registration_no || "052537207")} · Licensed by the Central Bank of Liberia</small></div>
+    <div class="doc"><h1>POLICY SCHEDULE</h1><div class="no">${esc(p.policy_no)}</div>${p.old_policy_no ? `<div style="margin-top:4px;font-size:12px">Replaces policy ${esc(p.old_policy_no)}</div>` : ""}<div style="margin-top:6px">${status}</div></div>
+  </div>
+
+  <h2>The insured</h2>
+  <div class="kv">
+    <div><b>Name</b>${esc(p.holder)}</div><div><b>Phone</b>${esc(p.phone)}</div>
+    <div><b>Class of insurance</b>${esc(p.class_name)}</div><div><b>Date issued</b>${d(p.issue_date)}</div>
+    <div><b>Period of cover</b>${d(p.start_date)} to ${d(p.end_date)}</div><div><b>Territory</b>Republic of Liberia</div>
+    <div><b>Total sum insured</b>${Number(p.sum_insured) ? "USD " + m(p.sum_insured) : "Statutory limits"}</div><div><b>Documents checked</b>${p.docs_verified_at ? d(p.docs_verified_at) : "Pending"}</div>
+  </div>
+
+  <h2>Schedule of insured items</h2>
+  <table><thead><tr><th>#</th><th>Description</th><th>Plate</th><th>Chassis / VIN</th><th>Year</th><th>Use / location</th><th>Sum insured</th><th>Premium</th></tr></thead><tbody>${itemRows}</tbody></table>
+
+  <h2>Premium (USD)</h2>
+  <table><tbody>
+    <tr><td>Premium</td><td class="n">${m(p.gross_premium)}</td></tr>
+    ${Number(p.tax) ? `<tr><td>Tax</td><td class="n">${m(p.tax)}</td></tr>` : ""}
+    ${Number(p.policy_fee) ? `<tr><td>Sticker, ECOWAS brown card and fees</td><td class="n">${m(p.policy_fee)}</td></tr>` : ""}
+    <tr class="tot"><td>Total due</td><td class="n">${m(total)}</td></tr>
+    <tr><td>Paid</td><td class="n">${m(paid)}</td></tr>
+    <tr class="tot"><td>Balance</td><td class="n">${m(total - paid)}</td></tr>
+    ${approved && p.status !== "active" && p.pay_by ? `<tr><td colspan="2" style="color:#B3261E;font-weight:700">Pay by ${d(p.pay_by)}. Cover starts only when the premium is received. If it is not paid by this date, this approval lapses.</td></tr>` : ""}
+  </tbody></table>
+
+  ${rule ? `<h2>Cover, limits and deductible</h2>
+  <table><tbody>
+    <tr><th style="width:28%">Limits</th><td>${esc(rule.limits)}</td></tr>
+    <tr><th>Deductible / excess</th><td>${esc(p.deductible_text || rule.deductible)}</td></tr>
+    <tr><th>Main exclusions</th><td>${esc(rule.exclusions)}</td></tr>
+    <tr><th>Special conditions</th><td>${esc(rule.conditions)}</td></tr>
+    ${p.uw_conditions ? `<tr><th>Conditions for this policy</th><td style="white-space:pre-wrap">${esc(p.uw_conditions)}</td></tr>` : ""}
+  </tbody></table>` : ""}
+
+  <h2>Conditions</h2>
+  <ol class="cond">
+    <li><b>No premium, no cover.</b> Cover starts only when the full premium is received (CBL Regulation INS/008/2016).</li>
+    <li><b>Documents and claims.</b> The insured must deliver the vehicle or risk documents to our office for final verification and evaluation. No claim is accepted for a loss occurring earlier than 15 days after the documents are verified${claimsFrom ? ` — for this policy, losses from <b>${claimsFrom}</b>` : ""}.</li>
+    <li>Any accident or loss must be reported to Platinum Insurers within 48 hours, with a police report where required.</li>
+    <li>This schedule forms part of the policy wording for ${esc(p.class_name)}, which applies in full. The wording is available from our office on request.</li>
+    <li>Misrepresentation or non-disclosure of material facts may void this policy.</li>
+  </ol>
+
+  ${certs}
+
+  ${(endorsements || []).length ? `<h2>Endorsements — special terms for this client</h2>
+  ${endorsements.map((e) => `<div style="margin-bottom:8px"><b>Endorsement ${e.endorsement_no}: ${esc(e.title)}</b> <span style="color:#556">(effective ${d(e.effective_date)}${Number(e.additional_premium) ? " · additional premium USD " + m(e.additional_premium) : ""})</span><div class="cond" style="white-space:pre-wrap">${esc(e.body)}</div></div>`).join("")}
+  <p class="cond">Endorsements form part of this Policy. Where an Endorsement conflicts with the standard wording, the Endorsement prevails.</p>` : ""}
+
+  ${approved ? `<div class="seal"><b>APPROVED</b>Underwritten: ${esc(signed?.underwriter?.name || p.uw_signed_by || "")}${signed?.underwriter_at ? " · " + d(signed.underwriter_at) : ""}<br>Final approval: ${esc(signed?.gm?.name || p.gm_approved_by || p.approved_by || "")}${signed?.gm?.title ? ", " + esc(signed.gm.title) : ", General Manager"}${signed?.gm_at ? " · " + d(signed.gm_at) : ""}<br>Platinum Insurers, Inc. · Monrovia</div>` : ""}
+  <div class="sign"><div>For and on behalf of Platinum Insurers, Inc.</div><div>Insured</div></div>
+  ${wording ? `<div style="page-break-before:always"></div><h2>Policy wording — ${esc(wording.title || p.class_name)} (version ${esc(wording.version)})</h2>
+  <div class="cond" style="white-space:pre-wrap;font-size:11px;line-height:1.5">${esc(wording.body)}</div>` : ""}
+  <div class="foot">Issued ${d(p.issue_date)} · Verify this policy with Platinum Insurers at +231 775 502 780</div>
+</div>`;
+document.title = p.policy_no + " — " + (p.holder || "Policy");
+</script>
+</body>
+</html>

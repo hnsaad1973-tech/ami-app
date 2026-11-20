@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Africa Re quarterly submission — Platinum Insurers</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Space+Grotesk:wght@700&display=swap" rel="stylesheet">
+<style>
+  .bar{flex-wrap:wrap}
+  @page{size:A4;margin:14mm}
+  *{box-sizing:border-box}
+  body{margin:0;background:#E9ECF1;font-family:Inter,Arial,sans-serif;color:#1A2233;font-size:12.5px}
+  .bar{position:sticky;top:0;background:#0B1B33;padding:10px;display:flex;gap:8px;justify-content:center}
+  .bar button{min-height:42px;padding:0 18px;border-radius:10px;border:none;background:#D4A84B;color:#0B1B33;font-weight:700;font-size:15px}
+  .page{background:#fff;width:210mm;max-width:100%;margin:14px auto;padding:14mm;box-shadow:0 2px 12px rgba(0,0,0,.12)}
+  .head{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:3px solid #0B1B33;padding-bottom:10px}
+  .brand{font-family:'Space Grotesk',Arial,sans-serif;font-size:22px;letter-spacing:2px;color:#0B1B33}
+  .brand small{display:block;font-family:Inter,Arial;font-size:11px;letter-spacing:0;color:#556;font-weight:400}
+  .t{text-align:right}.t h1{margin:0;font-size:17px}.t div{color:#B08A2E;font-weight:700;margin-top:3px}
+  h2{font-size:12px;letter-spacing:1px;text-transform:uppercase;color:#0B1B33;border-bottom:1px solid #CCD3DE;padding-bottom:4px;margin:18px 0 8px}
+  .lead{font-size:13.5px;line-height:1.5;margin:12px 0 0}
+  .kp{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:10px}
+  .kp div{border:1px solid #CCD3DE;border-radius:8px;padding:8px}.kp b{display:block;font-size:16px;margin-top:2px}.kp span{font-size:10.5px;color:#556}
+  table{width:100%;border-collapse:collapse}
+  th,td{border:1px solid #CCD3DE;padding:5px 7px;text-align:left;vertical-align:top}
+  th{background:#F1F3F7;font-size:11px}
+  td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
+  .tot td{font-weight:700;background:#FAF6EC}
+  .red{color:#B3261E;font-weight:700}.green{color:#1F7A3A;font-weight:700}
+  .note{font-size:11px;color:#556}
+  .sign{display:flex;justify-content:space-between;margin-top:34px}.sign div{width:30%;border-top:1px solid #333;padding-top:4px;font-size:11px}
+  .err{max-width:600px;margin:40px auto;background:#fff;padding:20px;border-radius:10px}
+  @media print{body{background:#fff}.bar{display:none}.page{box-shadow:none;margin:0;width:auto;padding:0}}
+</style>
+</head>
+<body>
+<div class="bar"><button onclick="window.print()">Print / Save as PDF</button></div>
+<div id="out" class="err">Loading…</div>
+<script type="module">
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+const SB_URL = "https://xxdqrvcpxhsepwzfmnjs.supabase.co";
+const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh4ZHFydmNweGhzZXB3emZtbmpzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQ2MTQxNzQsImV4cCI6MjExMDE5MDE3NH0.ZjN4PXCs7IilwaO16o6kg1Bu1K66V_vfoUILHMjgGBU";
+const sb = createClient(SB_URL, SB_KEY);
+const out = document.getElementById("out");
+const esc = (v) => (v === null || v === undefined ? "" : String(v).replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c])));
+const m = (v) => Number(v || 0).toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+const pct = (v) => (v === null || v === undefined || isNaN(v) ? "—" : (Number(v) * 100).toFixed(1) + "%");
+
+
+const qd = new URLSearchParams(location.search).get("q") || new Date(Date.now() - 45 * 864e5).toISOString().slice(0, 10);
+const { data: { session } } = await sb.auth.getSession();
+if (!session) { out.innerHTML = 'Please sign in on the <a href="./">Platinum</a> page first.'; throw 0; }
+const QE = await import("./qedit.js?v=2"); if (!(await QE.gate(SB_URL, SB_KEY, session, out))) throw 0;
+const r = await fetch(SB_URL + "/functions/v1/platbooks", { method: "POST", headers: { "Content-Type": "application/json", Authorization: "Bearer " + session.access_token, apikey: SB_KEY }, body: JSON.stringify({ action: "are_report", date: qd }) });
+const j = await r.json();
+if (!r.ok || j.error) { out.textContent = j.error || "Could not load the report"; throw 0; }
+const R = j.report, CO = R.company || {};
+const d = (v) => (v ? new Date(v + "T00:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "");
+const m2 = (v) => Number(v || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const sum = (a, k) => a.reduce((s, x) => s + Number(x[k] || 0), 0);
+const yn = (v) => (v ? '<span class="green">Yes</span>' : '<span class="red">No</span>');
+const empty = (n, t) => `<tr><td colspan="${n}" class="note">${t}</td></tr>`;
+const header = (t1, t2) => `<div class="head"><div class="brand">PLATINUM<small>${esc(CO.name || "PLATINUM INSURERS, INC.")} · ${esc(CO.office || "")} · Licence IBL-012</small></div>
+  <div class="t"><h1>${t1}</h1><div>${t2}</div><div class="note" style="font-weight:400">Period ${d(R.period_start)} to ${d(R.period_end)}</div></div></div>`;
+
+const A = R.accounts || [], PB = R.premium_bordereau || [], CB = R.claims_bordereau || [], X = R.xl || [], EP = R.epi || [], CC = R.cash_calls || [];
+const bal = (x) => Number(x.premium_ceded) - Number(x.commission) - Number(x.claims_recovered);
+const xlQ = X.reduce((s, x) => s + Number(x.quarter_instalment || 0), 0);
+const totBal = A.reduce((s, x) => s + bal(x), 0);
+out.className = "";
+out.innerHTML = `<div class="page">${header("Quarterly Submission to Africa Re", "Treaty accounts — " + esc(R.quarter))}
+<p class="lead">To: African Reinsurance Corporation (Africa Re). Cedant: ${esc(CO.name || "Platinum Insurers, Inc.")}, Monrovia, Liberia. Currency: USD.</p>
+<p class="note">${esc(R.terms_note)}</p>
+
+<h2>1. Quarterly treaty account</h2>
+<table><tr><th>Treaty section</th><th class="n">Cession</th><th class="n">Premium ceded</th><th class="n">Commission</th><th class="n">Claims recovered</th><th class="n">Balance</th></tr>
+${A.map((x) => `<tr><td>${esc(x.name)}</td><td class="n">${pct(x.qs_pct)}</td><td class="n">${m2(x.premium_ceded)}</td><td class="n">${m2(x.commission)}</td><td class="n">${m2(x.claims_recovered)}</td><td class="n">${m2(bal(x))}</td></tr>`).join("")}
+<tr class="tot"><td>Total proportional</td><td></td><td class="n">${m2(sum(A, "premium_ceded"))}</td><td class="n">${m2(sum(A, "commission"))}</td><td class="n">${m2(sum(A, "claims_recovered"))}</td><td class="n">${m2(totBal)}</td></tr>
+<tr><td colspan="5">Excess of loss — deposit premium instalment for the quarter (see section 4)</td><td class="n">${m2(xlQ)}</td></tr>
+<tr class="tot"><td colspan="5">${totBal + xlQ >= 0 ? "Balance due to Africa Re" : "Balance due from Africa Re"}</td><td class="n">${m2(Math.abs(totBal + xlQ))}</td></tr></table>
+
+<h2>2. Premium bordereau — policies ceded this quarter</h2>
+<table><tr><th>Policy</th><th>Insured</th><th>Section</th><th>Period</th><th class="n">Sum insured</th><th class="n">Gross premium</th><th class="n">Ceded %</th><th class="n">Ceded premium</th><th class="n">Commission</th></tr>
+${PB.length ? PB.map((x) => `<tr><td>${esc(x.policy_no)}</td><td>${esc(x.holder)}</td><td>${esc(x.treaty_section)}</td><td>${d(x.start_date)} – ${d(x.end_date)}</td><td class="n">${m(x.sum_insured)}</td><td class="n">${m2(x.gross_premium)}</td><td class="n">${pct(x.ceded_pct)}</td><td class="n">${m2(x.ceded_premium)}</td><td class="n">${m2(x.ri_commission)}</td></tr>`).join("") : empty(9, "No policies ceded to the treaty this quarter")}
+${PB.length ? `<tr class="tot"><td colspan="4">Total</td><td class="n">${m(sum(PB, "sum_insured"))}</td><td class="n">${m2(sum(PB, "gross_premium"))}</td><td></td><td class="n">${m2(sum(PB, "ceded_premium"))}</td><td class="n">${m2(sum(PB, "ri_commission"))}</td></tr>` : ""}</table>
+
+<h2>3. Claims bordereau — paid and outstanding</h2>
+<table><tr><th>Claim</th><th>Policy</th><th>Section</th><th>Date of loss</th><th>Status</th><th class="n">Paid</th><th class="n">Outstanding</th><th class="n">Africa Re share</th></tr>
+${CB.length ? CB.map((x) => `<tr><td>${esc(x.claim_no)}</td><td>${esc(x.policy_no)}</td><td>${esc(x.treaty_section)}</td><td>${d(x.loss_date)}</td><td>${esc(x.status)}</td><td class="n">${m2(x.paid)}</td><td class="n">${m2(x.outstanding)}</td><td class="n">${m2(x.ri_recoverable)}</td></tr>`).join("") : empty(8, "No claims under the treaty")}
+${CB.length ? `<tr class="tot"><td colspan="5">Total</td><td class="n">${m2(sum(CB, "paid"))}</td><td class="n">${m2(sum(CB, "outstanding"))}</td><td class="n">${m2(sum(CB, "ri_recoverable"))}</td></tr>` : ""}</table>
+${CC.length ? `<p class="note red">Cash call: ${CC.map((x) => `${esc(x.claim_no)} (${esc(x.section)}) — recoverable ${m2(x.recoverable)}, cash-call limit ${m(x.cash_call_limit)}`).join("; ")}. Request immediate payment from Africa Re.</p>` : ""}
+
+<h2>4. Excess of loss covers</h2>
+<table><tr><th>Cover</th><th class="n">Annual deposit premium</th><th class="n">Quarterly instalment</th><th>Bound</th></tr>
+${X.map((x) => `<tr><td>${esc(x.name)}</td><td class="n">${m2(x.annual_premium)}</td><td class="n">${m2(x.quarter_instalment)}</td><td>${yn(x.bound)}</td></tr>`).join("")}
+<tr class="tot"><td>Total</td><td class="n">${m2(sum(X, "annual_premium"))}</td><td class="n">${m2(xlQ)}</td><td></td></tr></table>
+
+<h2>5. Premium against estimate (EPI) — year to date</h2>
+<table><tr><th>Section</th><th class="n">Estimated premium income</th><th class="n">Gross premium written YTD</th><th class="n">% of estimate</th></tr>
+${EP.map((x) => `<tr><td>${esc(x.section)}</td><td class="n">${m(x.epi)}</td><td class="n">${m2(x.ytd_gwp)}</td><td class="n">${x.epi ? pct(x.ytd_gwp / x.epi) : "—"}</td></tr>`).join("")}</table>
+
+<div class="sign"><div>Prepared by — Accountant</div><div>Approved — General Manager</div><div>Received — Africa Re</div></div>
+</div>`;
+document.title = "Africa Re submission " + R.quarter + " — Platinum Insurers";
+QE.init("africare", R.quarter, out).catch((e) => alert(e.message));
+</script>
+</body>
+</html>

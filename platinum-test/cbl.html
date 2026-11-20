@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CBL quarterly return — Platinum Insurers</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Space+Grotesk:wght@700&display=swap" rel="stylesheet">
+<style>
+  .bar{flex-wrap:wrap}
+  @page{size:A4;margin:14mm}
+  *{box-sizing:border-box}
+  body{margin:0;background:#E9ECF1;font-family:Inter,Arial,sans-serif;color:#1A2233;font-size:12.5px}
+  .bar{position:sticky;top:0;background:#0B1B33;padding:10px;display:flex;gap:8px;justify-content:center}
+  .bar button{min-height:42px;padding:0 18px;border-radius:10px;border:none;background:#D4A84B;color:#0B1B33;font-weight:700;font-size:15px}
+  .page{background:#fff;width:210mm;max-width:100%;margin:14px auto;padding:14mm;box-shadow:0 2px 12px rgba(0,0,0,.12)}
+  .head{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:3px solid #0B1B33;padding-bottom:10px}
+  .brand{font-family:'Space Grotesk',Arial,sans-serif;font-size:22px;letter-spacing:2px;color:#0B1B33}
+  .brand small{display:block;font-family:Inter,Arial;font-size:11px;letter-spacing:0;color:#556;font-weight:400}
+  .t{text-align:right}.t h1{margin:0;font-size:17px}.t div{color:#B08A2E;font-weight:700;margin-top:3px}
+  h2{font-size:12px;letter-spacing:1px;text-transform:uppercase;color:#0B1B33;border-bottom:1px solid #CCD3DE;padding-bottom:4px;margin:18px 0 8px}
+  .lead{font-size:13.5px;line-height:1.5;margin:12px 0 0}
+  .kp{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:10px}
+  .kp div{border:1px solid #CCD3DE;border-radius:8px;padding:8px}.kp b{display:block;font-size:16px;margin-top:2px}.kp span{font-size:10.5px;color:#556}
+  table{width:100%;border-collapse:collapse}
+  th,td{border:1px solid #CCD3DE;padding:5px 7px;text-align:left;vertical-align:top}
+  th{background:#F1F3F7;font-size:11px}
+  td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
+  .tot td{font-weight:700;background:#FAF6EC}
+  .red{color:#B3261E;font-weight:700}.green{color:#1F7A3A;font-weight:700}
+  .note{font-size:11px;color:#556}
+  .sign{display:flex;justify-content:space-between;margin-top:34px}.sign div{width:30%;border-top:1px solid #333;padding-top:4px;font-size:11px}
+  .err{max-width:600px;margin:40px auto;background:#fff;padding:20px;border-radius:10px}
+  @media print{body{background:#fff}.bar{display:none}.page{box-shadow:none;margin:0;width:auto;padding:0}}
+</style>
+</head>
+<body>
+<div class="bar"><button onclick="window.print()">Print / Save as PDF</button></div>
+<div id="out" class="err">Loading…</div>
+<script type="module">
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+const SB_URL = "https://xxdqrvcpxhsepwzfmnjs.supabase.co";
+const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh4ZHFydmNweGhzZXB3emZtbmpzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQ2MTQxNzQsImV4cCI6MjExMDE5MDE3NH0.ZjN4PXCs7IilwaO16o6kg1Bu1K66V_vfoUILHMjgGBU";
+const sb = createClient(SB_URL, SB_KEY);
+const out = document.getElementById("out");
+const esc = (v) => (v === null || v === undefined ? "" : String(v).replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c])));
+const m = (v) => Number(v || 0).toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+const pct = (v) => (v === null || v === undefined || isNaN(v) ? "—" : (Number(v) * 100).toFixed(1) + "%");
+
+
+const qd = new URLSearchParams(location.search).get("q") || new Date(Date.now() - 45 * 864e5).toISOString().slice(0, 10);
+const { data: { session } } = await sb.auth.getSession();
+if (!session) { out.innerHTML = 'Please sign in on the <a href="./">Platinum</a> page first.'; throw 0; }
+const QE = await import("./qedit.js?v=2"); if (!(await QE.gate(SB_URL, SB_KEY, session, out))) throw 0;
+const r = await fetch(SB_URL + "/functions/v1/platbooks", { method: "POST", headers: { "Content-Type": "application/json", Authorization: "Bearer " + session.access_token, apikey: SB_KEY }, body: JSON.stringify({ action: "cbl_report", date: qd }) });
+const j = await r.json();
+if (!r.ok || j.error) { out.textContent = j.error || "Could not load the report"; throw 0; }
+const R = j.report, CO = R.company || {};
+const d = (v) => (v ? new Date(v + "T00:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "");
+const m2 = (v) => Number(v || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const sum = (a, k) => a.reduce((s, x) => s + Number(x[k] || 0), 0);
+const yn = (v) => (v ? '<span class="green">Yes</span>' : '<span class="red">No</span>');
+const empty = (n, t) => `<tr><td colspan="${n}" class="note">${t}</td></tr>`;
+const header = (t1, t2) => `<div class="head"><div class="brand">PLATINUM<small>${esc(CO.name || "PLATINUM INSURERS, INC.")} · ${esc(CO.office || "")} · Licence IBL-012</small></div>
+  <div class="t"><h1>${t1}</h1><div>${t2}</div><div class="note" style="font-weight:400">Period ${d(R.period_start)} to ${d(R.period_end)}</div></div></div>`;
+
+const P = R.premium_by_class || [], C = R.claims_by_class || [], IS = R.income_statement || [], BS = R.balance_sheet || [], K = R.capital || {};
+const inc = IS.filter((x) => x.type === "income"), exp = IS.filter((x) => x.type === "expense");
+const resQ = sum(inc, "quarter") - sum(exp, "quarter"), resY = sum(inc, "ytd") - sum(exp, "ytd");
+const A = BS.filter((x) => x.type === "asset"), L = BS.filter((x) => x.type === "liability"), E = BS.filter((x) => x.type === "equity");
+const ytdIncl = resY; // current-year result not yet closed to retained earnings
+out.className = "";
+out.innerHTML = `<div class="page">${header("Quarterly Return to the Central Bank of Liberia", "Non-life — " + esc(R.quarter))}
+<p class="lead">Prepared under the Liberia Insurance Act 2013 and CBL regulations INS/003/2016 (financial statements), INS/005/2016 (prudential), INS/008/2016 (no premium, no cover) and the Regulation Concerning Reinsurance Arrangements. Amounts in USD, from the company's books.</p>
+
+<h2>1. Premium written by class — this quarter</h2>
+<table><tr><th>Class</th><th class="n">Policies</th><th class="n">Sum insured</th><th class="n">Gross premium</th><th class="n">Reinsurance ceded</th><th class="n">Net premium</th><th class="n">RI commission</th><th class="n">Commission paid</th></tr>
+${P.length ? P.map((x) => `<tr><td>${esc(x.class_name)}</td><td class="n">${x.policies}</td><td class="n">${m(x.sum_insured)}</td><td class="n">${m2(x.gwp)}</td><td class="n">${m2(x.ceded)}</td><td class="n">${m2(x.gwp - x.ceded)}</td><td class="n">${m2(x.ri_commission)}</td><td class="n">${m2(x.commission_paid)}</td></tr>`).join("") : empty(8, "No premium written this quarter")}
+<tr class="tot"><td>Total</td><td class="n">${sum(P, "policies")}</td><td class="n">${m(sum(P, "sum_insured"))}</td><td class="n">${m2(sum(P, "gwp"))}</td><td class="n">${m2(sum(P, "ceded"))}</td><td class="n">${m2(sum(P, "gwp") - sum(P, "ceded"))}</td><td class="n">${m2(sum(P, "ri_commission"))}</td><td class="n">${m2(sum(P, "commission_paid"))}</td></tr></table>
+
+<h2>2. Claims by class</h2>
+<table><tr><th>Class</th><th class="n">Reported in quarter</th><th class="n">Paid in quarter</th><th class="n">Reinsurance recovered</th><th class="n">Outstanding at quarter end</th></tr>
+${C.length ? C.map((x) => `<tr><td>${esc(x.class_name)}</td><td class="n">${x.reported}</td><td class="n">${m2(x.paid)}</td><td class="n">${m2(x.recovered)}</td><td class="n">${m2(x.outstanding)}</td></tr>`).join("") : empty(5, "No claims reported, paid or outstanding")}
+<tr class="tot"><td>Total</td><td class="n">${sum(C, "reported")}</td><td class="n">${m2(sum(C, "paid"))}</td><td class="n">${m2(sum(C, "recovered"))}</td><td class="n">${m2(sum(C, "outstanding"))}</td></tr></table>
+
+<h2>3. Income statement</h2>
+<table><tr><th>Account</th><th class="n">This quarter</th><th class="n">Year to date</th></tr>
+${inc.map((x) => `<tr><td>${esc(x.name)}</td><td class="n">${m2(x.quarter)}</td><td class="n">${m2(x.ytd)}</td></tr>`).join("")}
+<tr class="tot"><td>Total income</td><td class="n">${m2(sum(inc, "quarter"))}</td><td class="n">${m2(sum(inc, "ytd"))}</td></tr>
+${exp.map((x) => `<tr><td>${esc(x.name)}</td><td class="n">${m2(x.quarter)}</td><td class="n">${m2(x.ytd)}</td></tr>`).join("")}
+<tr class="tot"><td>Total expenses</td><td class="n">${m2(sum(exp, "quarter"))}</td><td class="n">${m2(sum(exp, "ytd"))}</td></tr>
+<tr class="tot"><td>Result</td><td class="n ${resQ < 0 ? "red" : ""}">${m2(resQ)}</td><td class="n ${resY < 0 ? "red" : ""}">${m2(resY)}</td></tr></table>
+
+<h2>4. Statement of financial position at ${d(R.period_end)}</h2>
+<table><tr><th>Assets</th><th class="n">USD</th></tr>
+${A.map((x) => `<tr><td>${esc(x.name)}</td><td class="n">${m2(x.balance)}</td></tr>`).join("")}
+<tr class="tot"><td>Total assets</td><td class="n">${m2(sum(A, "balance"))}</td></tr>
+<tr><th>Liabilities</th><th class="n">USD</th></tr>
+${L.map((x) => `<tr><td>${esc(x.name)}</td><td class="n">${m2(x.balance)}</td></tr>`).join("")}
+<tr class="tot"><td>Total liabilities</td><td class="n">${m2(sum(L, "balance"))}</td></tr>
+<tr><th>Equity</th><th class="n">USD</th></tr>
+${E.map((x) => `<tr><td>${esc(x.name)}</td><td class="n">${m2(x.balance)}</td></tr>`).join("")}
+<tr><td>Result for the year to date</td><td class="n">${m2(ytdIncl)}</td></tr>
+<tr class="tot"><td>Total equity</td><td class="n">${m2(sum(E, "balance") + ytdIncl)}</td></tr></table>
+
+<h2>5. Capital and solvency</h2>
+<table>
+<tr><td>Paid-up share capital booked</td><td class="n">${m2(K.share_capital)}</td></tr>
+<tr><td>Net assets (assets less liabilities)</td><td class="n">${m2(K.net_assets)}</td></tr>
+<tr><td>CBL minimum capital — non-life (Regulation Concerning New Capital Requirement)</td><td class="n">${m2(K.minimum_required)}</td></tr>
+<tr class="tot"><td>Meets minimum capital</td><td class="n">${yn(K.meets_minimum)}${K.shortfall > 0 ? ` — shortfall ${m2(K.shortfall)}` : ""}</td></tr>
+<tr><td>Statutory deposit with CBL</td><td class="n">${m2(K.statutory_deposit)}</td></tr>
+<tr><td>Gross premium year to date</td><td class="n">${m2(K.gwp_ytd)}</td></tr>
+<tr><td>Reinsurance ceded year to date</td><td class="n">${m2(K.ceded_ytd)}</td></tr>
+<tr class="tot"><td>Retention (minimum ${pct(K.min_retention_pct)})</td><td class="n">${pct(K.retained_pct)} ${K.meets_retention === null || K.meets_retention === undefined ? "" : yn(K.meets_retention)}</td></tr></table>
+${!K.share_capital ? '<p class="note red">Paid-up capital and the statutory deposit are not yet booked. They must be entered before this return is filed.</p>' : ""}
+
+<h2>6. Reinsurance arrangements</h2>
+<table><tr><th>Section</th><th>Reinsurer</th><th class="n">Quota share</th><th class="n">Capacity</th><th class="n">Commission</th><th>Bound</th></tr>
+${(R.reinsurance || []).map((x) => `<tr><td>${esc(x.name)}</td><td>${esc(x.reinsurer)}</td><td class="n">${pct(x.qs_pct)}</td><td class="n">${x.capacity ? m(x.capacity) : "—"}</td><td class="n">${pct(x.commission)}</td><td>${yn(x.bound)}</td></tr>`).join("")}</table>
+
+<h2>7. Risks of USD 1,000,000 or more written this quarter</h2>
+<table><tr><th>Policy</th><th>Class</th><th class="n">Sum insured</th><th>Facultative placed</th><th>Board approved</th></tr>
+${(R.large_risks || []).length ? R.large_risks.map((x) => `<tr><td>${esc(x.policy_no)}</td><td>${esc(x.class)}</td><td class="n">${m(x.sum_insured)}</td><td>${yn(x.fac)}</td><td>${yn(x.board)}</td></tr>`).join("") : empty(5, "None")}</table>
+
+<h2>8. Regulatory compliance</h2>
+<table><tr><th>Item</th><th>Regulation</th><th>Due</th><th>Status</th></tr>
+${(R.compliance || []).map((x) => `<tr><td>${esc(x.item)}</td><td>${esc(x.regulation || "")}</td><td>${d(x.due)}</td><td class="${x.status === "done" ? "green" : "red"}">${esc(x.status)}</td></tr>`).join("")}</table>
+
+<h2>Declaration</h2>
+<p class="lead">We confirm that this return has been prepared from the books of Platinum Insurers, Inc. and is true and correct to the best of our knowledge.</p>
+<div class="sign"><div>Accountant</div><div>General Manager</div><div>Chairman of the Board</div></div>
+</div>`;
+document.title = "CBL quarterly return " + R.quarter + " — Platinum Insurers";
+QE.init("cbl", R.quarter, out).catch((e) => alert(e.message));
+</script>
+</body>
+</html>

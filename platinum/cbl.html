@@ -6,6 +6,7 @@
 <title>CBL quarterly return — Platinum Insurers</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Space+Grotesk:wght@700&display=swap" rel="stylesheet">
 <style>
+  .bar{flex-wrap:wrap}
   @page{size:A4;margin:14mm}
   *{box-sizing:border-box}
   body{margin:0;background:#E9ECF1;font-family:Inter,Arial,sans-serif;color:#1A2233;font-size:12.5px}
@@ -49,6 +50,7 @@ const pct = (v) => (v === null || v === undefined || isNaN(v) ? "—" : (Number(
 const qd = new URLSearchParams(location.search).get("q") || new Date(Date.now() - 45 * 864e5).toISOString().slice(0, 10);
 const { data: { session } } = await sb.auth.getSession();
 if (!session) { out.innerHTML = 'Please sign in on the <a href="./">Platinum</a> page first.'; throw 0; }
+const QE = await import("./qedit.js?v=1"); if (!(await QE.gate(SB_URL, SB_KEY, session, out))) throw 0;
 const r = await fetch(SB_URL + "/functions/v1/plat", { method: "POST", headers: { "Content-Type": "application/json", Authorization: "Bearer " + session.access_token, apikey: SB_KEY }, body: JSON.stringify({ action: "cbl_report", date: qd }) });
 const j = await r.json();
 if (!r.ok || j.error) { out.textContent = j.error || "Could not load the report"; throw 0; }
@@ -129,6 +131,7 @@ ${(R.compliance || []).map((x) => `<tr><td>${esc(x.item)}</td><td>${esc(x.regula
 <div class="sign"><div>Accountant</div><div>General Manager</div><div>Chairman of the Board</div></div>
 </div>`;
 document.title = "CBL quarterly return " + R.quarter + " — Platinum Insurers";
+QE.init("cbl", R.quarter, out).catch((e) => alert(e.message));
 </script>
 </body>
 </html>

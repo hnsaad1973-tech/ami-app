@@ -63,6 +63,7 @@ const j = await r.json();
 if (!r.ok || j.error) { out.textContent = j.error || "Could not load policy"; throw 0; }
 
 const { p, items, receipts, company, tpl, rule, wording, endorsements, signed } = j;
+try { const SL = await import("./sharelock.js?v=1"); await SL.lockPage({ url: SB_URL, key: SB_KEY, session, kind: "policy", ref: p.policy_no }); } catch (_) {}
 // sticker and Brown Card numbers per vehicle (same order as the schedule); not shown if this user cannot see the register
 let CN = [];
 try { const rc = await fetch(SB_URL + "/functions/v1/platkyc", { method: "POST", headers: { "Content-Type": "application/json", Authorization: "Bearer " + session.access_token, apikey: SB_KEY }, body: JSON.stringify({ action: "cert_policy", policy_no: p.policy_no }) });

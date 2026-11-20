@@ -215,15 +215,15 @@ const SECTIONS = {
   sales: { name: "Sales", desc: "Enter policy requests for underwriting, issue approved policies to clients, follow up payment, renewals.", roles: ["sales", "underwriter", "gm", "admin"],
     tabs: { s_new: "New policy request", s_mine: "My policies", s_clients: "Client contact info", s_kyc: "KYC", s_guide: "Product guide" } },
   uw: { name: "Underwriting", desc: "Approve referred risks, check documents, product rules, claims and treaty.", roles: ["underwriter", "gm", "admin"],
-    tabs: { u_queue: "Review queue", s_kyc: "KYC checks", u_all: "All policies", u_endorse: "Client clauses", u_word: "Standard wordings", u_rules: "Product rules", u_lib: "Policy library", u_claims: "Claims", u_treaty: "Africa Re" } },
+    tabs: { u_queue: "Review queue", u_files: "Client files", s_kyc: "KYC checks", u_all: "All policies", u_endorse: "Client clauses", u_word: "Standard wordings", u_rules: "Product rules", u_lib: "Policy library", u_claims: "Claims", u_treaty: "Africa Re" } },
   acct: { name: "Accounting", desc: "Receipts, debtors, commissions, payroll, month end, reports and compliance.", roles: ["accountant", "gm", "admin"],
     tabs: { a_receipts: "Receipts", a_claims: "Claim payments", a_debtors: "Debtors", a_comm: "Commissions", a_payroll: "Payroll", a_reports: "Reports", a_close: "Month end", g_cbl: "CBL quarterly", g_are: "Africa Re quarterly", a_comp: "Compliance" } },
   gm: { name: "General Manager", desc: "Company overview, alerts, final approval of every policy, CBL and Africa Re quarterly reports, compliance, board report.", roles: ["gm", "admin"],
-    tabs: { g_over: "Overview", g_alerts: "Alerts", g_appr: "Final approvals", g_claims: "Claim approvals", s_clients: "All client contacts", s_kyc: "KYC", g_cbl: "CBL quarterly", g_are: "Africa Re quarterly", a_comp: "Compliance", b_report: "Board report" } },
+    tabs: { g_over: "Overview", g_alerts: "Alerts", g_appr: "Final approvals", g_claims: "Claim approvals", s_clients: "All client contacts", s_kyc: "KYC", u_files: "Client files", g_cbl: "CBL quarterly", g_are: "Africa Re quarterly", a_comp: "Compliance", b_report: "Board report" } },
   ceo: { name: "CEO", desc: "Full access: overview, team and access, sign-off of product rules, audit trail.", roles: ["admin"],
-    tabs: { g_over: "Overview", s_clients: "All client contacts", s_kyc: "KYC", c_team: "Team & access", c_rules: "Sign off rules", c_word: "Sign off wordings", c_audit: "Audit trail", g_alerts: "Alerts" } },
+    tabs: { g_over: "Overview", s_clients: "All client contacts", s_kyc: "KYC", u_files: "Client files", c_team: "Team & access", c_rules: "Sign off rules", c_word: "Sign off wordings", c_audit: "Audit trail", g_alerts: "Alerts" } },
   board: { name: "Board", desc: "Monthly board report and risks above management limits for approval.", roles: ["board", "admin"],
-    tabs: { b_report: "Monthly report", b_approvals: "Above-limit approvals", b_kyc: "KYC summary", c_audit: "Audit trail", a_comp: "Compliance" } },
+    tabs: { b_report: "Monthly report", b_approvals: "Above-limit approvals", b_kyc: "KYC summary", u_files: "Client files", c_audit: "Audit trail", a_comp: "Compliance" } },
 };
 
 function showLogin() { document.body.classList.add("out"); try { const e = localStorage.getItem("plat_email"); if (e && !$("em").value) $("em").value = e; } catch (_) {} $("login").classList.remove("hide"); $("chooser").classList.add("hide"); $("tabs").classList.add("hide"); V().innerHTML = ""; }
@@ -386,6 +386,30 @@ const VIEWS = {
       return;
     }
     LAST = await list("clients"); V().innerHTML = `<div class="card"><div class="row" style="justify-content:space-between"><h2>All client contacts — consolidated</h2>${csvBtn("clients")}</div><div class="tablewrap" id="t"></div></div>`; table("t", LAST, { hide: ["id"] }); bindCsv(); },
+  async u_files() {
+    const rows = (await kapi({ action: "uw_files" })).rows; LAST = rows;
+    const board = ME.role === "board";
+    const n = (st) => rows.filter((r) => r.status === st).length;
+    const prem = rows.reduce((a, r) => a + Number(r.total_premium || 0), 0), out = rows.reduce((a, r) => a + Number(r.outstanding || 0), 0);
+    V().innerHTML = kpis([["Clients", rows.length], ["To sign", n("proposed"), n("proposed") > 0 && !board], ["Signed", n("signed")], ["Premium (USD)", money(prem)], ...(board ? [] : [["Unpaid (USD)", money(out), out > 0]])]) +
+      `<div class="card"><h2>Client underwriting files</h2><p class="note">${board ? "One file per client: covers, vehicles and premium. Underwriting signs each file." : "One file per client, built from the book: covers, vehicles, premium, unpaid balance, claims, fleet terms, deductibles and special terms. Check it, adjust the terms, then sign. Open a file to edit."}</p><div class="tablewrap" id="t"></div></div><div id="uf"></div>`;
+    table("t", board ? rows : rows.map((r) => ({ client: r.client, kyc: r.kyc, covers: r.covers, policies: r.policies, vehicles: r.vehicles, total_premium: r.total_premium, outstanding: r.outstanding, claims: r.claims, next_renewal: r.next_renewal, status: r.status === "proposed" ? "To sign" : r.status, party_id: r.party_id })),
+      { hide: ["party_id"], extra: board ? null : (r) => `<button class="btn sm ${r.status === "To sign" ? "" : "ghost"}" data-uf="${r.party_id}">Open</button>` });
+    document.querySelectorAll("[data-uf]").forEach((b) => (b.onclick = () => {
+      const r = rows.find((x) => x.party_id == b.dataset.uf);
+      const ta = (f, l) => `<label style="grid-column:1/-1">${l}<textarea id="uf_${f}" rows="3">${esc(r[f] || "")}</textarea></label>`;
+      $("uf").innerHTML = `<div class="card" id="ufc"><div class="row" style="justify-content:space-between"><h2>${esc(r.client)}</h2><span class="pill ${r.status === "signed" ? "a" : "p"}">${r.status === "signed" ? "Signed by " + esc(r.signed_by) : r.status === "declined" ? "Declined" : "To sign"}</span></div>
+        <p class="note">${esc(r.covers)} · ${r.policies} policies · ${r.vehicles} vehicles/items · premium USD ${money(r.total_premium)} · unpaid USD ${money(r.outstanding)} · claims ${r.claims} · next renewal ${String(r.next_renewal || "").slice(0, 10)} · KYC ${esc(r.kyc)}</p>
+        <div class="grid">${ta("fleet_terms", "Fleet terms and renewal")}${ta("deductibles", "Deductibles")}${ta("special_terms", "Special terms and conditions")}${ta("risk_notes", "Risk notes")}</div>
+        ${r.sign_note ? `<p class="note"><b>Sign-off note:</b> ${esc(r.sign_note)}</p>` : ""}
+        <div class="row"><button class="btn ghost" id="uf_save">Save</button><button class="btn" id="uf_sign">Sign file</button><button class="btn ghost" id="uf_dec">Decline</button></div></div>`;
+      const f = (decision, note) => ({ party_id: r.party_id, fleet_terms: $("uf_fleet_terms").value, deductibles: $("uf_deductibles").value, special_terms: $("uf_special_terms").value, risk_notes: $("uf_risk_notes").value, decision, note });
+      $("uf_save").onclick = run(async () => { await kapi({ action: "uw_file_save", f: f() }); say("Saved"); VIEWS.u_files(); });
+      $("uf_sign").onclick = run(async () => { const note = prompt("Sign-off note (what you checked):"); if (!note) return; await kapi({ action: "uw_file_save", f: f("sign", note) }); say(r.client + " file signed"); VIEWS.u_files(); });
+      $("uf_dec").onclick = run(async () => { const note = prompt("Why decline (non-renewal or terms)?"); if (!note) return; await kapi({ action: "uw_file_save", f: f("decline", note) }); say(r.client + " file declined"); VIEWS.u_files(); });
+      $("ufc").scrollIntoView({ behavior: "smooth" });
+    }));
+  },
   // ===== KYC (v3.5) =====
   async s_kyc() {
     const rows = (await kapi({ action: "kyc_list" })).rows; LAST = rows;

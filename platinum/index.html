@@ -159,10 +159,60 @@ async function api(body) {
   return j;
 }
 const list = async (name) => (await api({ action: "list", name })).rows;
+async function agentForm(id, edit) {
+  const d = id ? await gapi({ action: "agent_get", id }) : { agent: { agent_type: "agent", status: "active", comm_pct: "", extra: [] }, policies: [], lines: [] };
+  const g = d.agent; let extra = Array.isArray(g.extra) ? g.extra.slice() : [];
+  const box = id ? $("ag_view") : $("ag_form");
+  if (id && $("ag_form")) $("ag_form").innerHTML = "";
+  const v = (x) => esc(x === null || x === undefined ? "" : String(x));
+  const dis = edit ? "" : " disabled";
+  box.innerHTML = `<div class="card"><div class="row" style="justify-content:space-between"><h2>${id ? v(g.code) + " · " + v(g.name) : "New agent / broker"}</h2><button class="btn ghost sm" id="ag_close">Close</button></div>
+    <div class="grid"><label>Type<select id="ag_type"${dis}><option value="agent">Agent</option><option value="broker">Broker</option></select></label>
+      <label>Name<input id="ag_name" value="${v(g.name)}"${dis}></label><label>Company<input id="ag_co" value="${v(g.company)}"${dis}></label>
+      <label>Phone<input id="ag_ph" value="${v(g.phone)}"${dis}></label><label>Email<input id="ag_em" value="${v(g.email)}"${dis}></label>
+      <label>Address<input id="ag_ad" value="${v(g.address)}"${dis}></label><label>Area / county<input id="ag_area" value="${v(g.area)}"${dis}></label>
+      <label>Licence no. (CBL)<input id="ag_lic" value="${v(g.licence_no)}"${dis}></label><label>Licence expiry<input id="ag_exp" type="date" value="${v(String(g.licence_expiry || "").slice(0, 10))}"${dis}></label>
+      <label>Commission %<input id="ag_pct" type="number" step="0.01" value="${v(g.comm_pct)}"${dis}></label>
+      <label>Status<select id="ag_st"${dis}><option value="active">Active</option><option value="suspended">Suspended</option><option value="terminated">Terminated</option></select></label>
+      <label style="grid-column:1/-1">Payment details (bank or mobile money)<input id="ag_pay" value="${v(g.payment_details)}"${dis}></label>
+      <label style="grid-column:1/-1">Notes<textarea id="ag_notes" rows="2"${dis}>${v(g.notes)}</textarea></label></div>
+    <div class="row" style="justify-content:space-between"><b>More details</b>${edit ? '<button class="btn ghost sm" id="ag_add">＋ Add detail</button>' : ""}</div><div id="ag_extra"></div>
+    ${edit ? '<button class="btn" id="ag_save">Save</button>' : ""}
+    ${id ? `<h2 style="margin-top:16px">Policies (${d.policies.length})</h2><div class="tablewrap" id="ag_pt"></div><h2 style="margin-top:16px">Commission statement</h2><div class="tablewrap" id="ag_lt"></div>` : ""}</div>`;
+  $("ag_type").value = g.agent_type || "agent"; $("ag_st").value = g.status || "active";
+  const drawX = () => {
+    $("ag_extra").innerHTML = extra.length ? extra.map((x, i) => `<div class="row" style="gap:8px;align-items:flex-end;margin-bottom:6px"><label style="flex:1">Detail<input data-axl="${i}" value="${v(x.label)}" placeholder="e.g. ID number"${dis}></label><label style="flex:2">Value<input data-axv="${i}" value="${v(x.value)}"${dis}></label>${edit ? `<button class="btn ghost sm" data-axd="${i}">✕</button>` : ""}</div>`).join("") : '<p class="note">No extra details yet.</p>';
+    document.querySelectorAll("[data-axl]").forEach((e) => (e.oninput = () => (extra[+e.dataset.axl].label = e.value)));
+    document.querySelectorAll("[data-axv]").forEach((e) => (e.oninput = () => (extra[+e.dataset.axv].value = e.value)));
+    document.querySelectorAll("[data-axd]").forEach((b) => (b.onclick = () => { extra.splice(+b.dataset.axd, 1); drawX(); }));
+  };
+  drawX();
+  $("ag_close").onclick = () => (box.innerHTML = "");
+  if (edit) {
+    $("ag_add").onclick = () => { extra.push({ label: "", value: "" }); drawX(); };
+    $("ag_save").onclick = run(async () => {
+      const x = await gapi({ action: "agent_save", g: { id, agent_type: $("ag_type").value, name: $("ag_name").value, company: $("ag_co").value, phone: $("ag_ph").value, email: $("ag_em").value, address: $("ag_ad").value,
+        area: $("ag_area").value, licence_no: $("ag_lic").value, licence_expiry: $("ag_exp").value, comm_pct: $("ag_pct").value, status: $("ag_st").value, payment_details: $("ag_pay").value, notes: $("ag_notes").value, extra } });
+      say(`Saved · ${x.code}`); await VIEWS.u_agents(); await agentForm(x.id, true); });
+  }
+  if (id) {
+    table("ag_pt", d.policies.map((p) => ({ ...p, comm_pct: undefined, rate: p.comm_pct + "%" })).map(({ comm_pct, ...r }) => r));
+    table("ag_lt", d.lines);
+  }
+  box.scrollIntoView({ behavior: "smooth" });
+}
 async function kapi(body) {
   const { data: { session } } = await sb.auth.getSession();
   if (!session) { showLogin(); throw new Error("Please sign in"); }
   const r = await fetch(SB_URL + "/functions/v1/platkyc", { method: "POST", headers: { "Content-Type": "application/json", Authorization: "Bearer " + session.access_token, apikey: SB_KEY }, body: JSON.stringify(body) });
+  const j = await r.json().catch(() => ({ error: "Server error" }));
+  if (!r.ok || j.error) throw new Error(j.error || "Error " + r.status);
+  return j;
+}
+async function gapi(body) {
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) { showLogin(); throw new Error("Please sign in"); }
+  const r = await fetch(SB_URL + "/functions/v1/platagent", { method: "POST", headers: { "Content-Type": "application/json", Authorization: "Bearer " + session.access_token, apikey: SB_KEY }, body: JSON.stringify(body) });
   const j = await r.json().catch(() => ({ error: "Server error" }));
   if (!r.ok || j.error) throw new Error(j.error || "Error " + r.status);
   return j;
@@ -215,15 +265,15 @@ const SECTIONS = {
   sales: { name: "Sales", desc: "Enter policy requests for underwriting, issue approved policies to clients, follow up payment, renewals.", roles: ["sales", "underwriter", "gm", "admin"],
     tabs: { s_new: "New policy request", s_mine: "My policies", s_clients: "Client contact info", s_kyc: "KYC", s_guide: "Product guide" } },
   uw: { name: "Underwriting", desc: "Approve referred risks, check documents, product rules, claims and treaty.", roles: ["underwriter", "gm", "admin"],
-    tabs: { u_queue: "Review queue", u_files: "Client files", u_certs: "Stickers & Brown Cards", s_kyc: "KYC checks", u_all: "All policies", u_endorse: "Client clauses", u_word: "Standard wordings", u_rules: "Product rules", u_lib: "Policy library", u_claims: "Claims", u_treaty: "Africa Re" } },
+    tabs: { u_queue: "Review queue", u_files: "Client files", u_certs: "Stickers & Brown Cards", u_agents: "Agents & brokers", s_kyc: "KYC checks", u_all: "All policies", u_endorse: "Client clauses", u_word: "Standard wordings", u_rules: "Product rules", u_lib: "Policy library", u_claims: "Claims", u_treaty: "Africa Re" } },
   acct: { name: "Accounting", desc: "Receipts, debtors, commissions, payroll, month end, reports and compliance.", roles: ["accountant", "gm", "admin"],
-    tabs: { a_receipts: "Receipts", a_claims: "Claim payments", a_debtors: "Debtors", a_comm: "Commissions", a_payroll: "Payroll", a_reports: "Reports", a_close: "Month end", g_cbl: "CBL quarterly", g_are: "Africa Re quarterly", a_comp: "Compliance" } },
+    tabs: { a_receipts: "Receipts", a_claims: "Claim payments", a_debtors: "Debtors", a_comm: "Commissions", u_agents: "Agents & brokers", a_payroll: "Payroll", a_reports: "Reports", a_close: "Month end", g_cbl: "CBL quarterly", g_are: "Africa Re quarterly", a_comp: "Compliance" } },
   gm: { name: "General Manager", desc: "Company overview, alerts, final approval of every policy, CBL and Africa Re quarterly reports, compliance, board report.", roles: ["gm", "admin"],
-    tabs: { g_over: "Overview", g_alerts: "Alerts", g_appr: "Final approvals", g_claims: "Claim approvals", s_clients: "All client contacts", s_kyc: "KYC", u_files: "Client files", u_certs: "Stickers & Brown Cards", g_cbl: "CBL quarterly", g_are: "Africa Re quarterly", a_comp: "Compliance", b_report: "Board report" } },
+    tabs: { g_over: "Overview", g_alerts: "Alerts", g_appr: "Final approvals", g_claims: "Claim approvals", s_clients: "All client contacts", s_kyc: "KYC", u_files: "Client files", u_certs: "Stickers & Brown Cards", u_agents: "Agents & brokers", g_cbl: "CBL quarterly", g_are: "Africa Re quarterly", a_comp: "Compliance", b_report: "Board report" } },
   ceo: { name: "CEO", desc: "Full access: overview, team and access, sign-off of product rules, audit trail.", roles: ["admin"],
-    tabs: { g_over: "Overview", s_clients: "All client contacts", s_kyc: "KYC", u_files: "Client files", u_certs: "Stickers & Brown Cards", c_team: "Team & access", c_rules: "Sign off rules", c_word: "Sign off wordings", c_audit: "Audit trail", g_alerts: "Alerts" } },
+    tabs: { g_over: "Overview", s_clients: "All client contacts", s_kyc: "KYC", u_files: "Client files", u_certs: "Stickers & Brown Cards", u_agents: "Agents & brokers", c_team: "Team & access", c_rules: "Sign off rules", c_word: "Sign off wordings", c_audit: "Audit trail", g_alerts: "Alerts" } },
   board: { name: "Board", desc: "Monthly board report and risks above management limits for approval.", roles: ["board", "admin"],
-    tabs: { b_report: "Monthly report", b_approvals: "Above-limit approvals", b_kyc: "KYC summary", u_files: "Client files", c_audit: "Audit trail", a_comp: "Compliance" } },
+    tabs: { b_report: "Monthly report", b_approvals: "Above-limit approvals", b_kyc: "KYC summary", u_files: "Client files", u_agents: "Agents & brokers", c_audit: "Audit trail", a_comp: "Compliance" } },
 };
 
 function showLogin() { document.body.classList.add("out"); try { const e = localStorage.getItem("plat_email"); if (e && !$("em").value) $("em").value = e; } catch (_) {} $("login").classList.remove("hide"); $("chooser").classList.add("hide"); $("tabs").classList.add("hide"); V().innerHTML = ""; }
@@ -438,6 +488,35 @@ const VIEWS = {
       document.querySelectorAll("[data-gb]").forEach((b) => (b.onclick = give("brown_card", +b.dataset.gb, document.querySelector(`[data-bn="${b.dataset.gb}"]`))));
     };
     $("ca_go").onclick = run(openPol); $("ca_pol").addEventListener("keydown", (e) => { if (e.key === "Enter") $("ca_go").click(); });
+  },
+  // ===== Agents and brokers (v4.1) =====
+  async u_agents() {
+    const { rows, sum } = await gapi({ action: "agent_list" }); LAST = rows;
+    const board = ME.role === "board", edit = ["underwriter", "gm", "admin"].includes(ME.role);
+    const TY = { agent: "Agent", broker: "Broker" };
+    V().innerHTML = (board ? "" : kpis([["Active agents", sum.active], ["Licences expiring (30 days)", sum.licence_due, sum.licence_due > 0], ["Policies with no agent", sum.direct_policies], ["Commission owed (USD)", money(sum.owed), Number(sum.owed) > 0]])) +
+      (edit ? `<div class="card"><div class="row" style="justify-content:space-between"><div><h2>Agents and brokers</h2><p class="note">Register each agent or broker with their licence and commission rate, then give them their policies. Commission is earned when the client pays and is paid from Accounting → Commissions.</p></div><button class="btn" id="ag_new">＋ New agent / broker</button></div><div id="ag_form"></div></div>
+      <div class="card"><h2>Give an agent to policies</h2><p class="note">Pick the agent, then enter policy numbers (new or old, separated by commas) or choose a client to give all their policies. Leave the rate empty to use the agent's own rate. Choose "No agent (direct)" to remove an agent. Commission already booked on money received moves to the new agent.</p>
+        <div class="grid"><label>Agent<select id="as_ag"><option value="">No agent (direct)</option>${rows.filter((r) => r.status === "active").map((r) => `<option value="${r.id}">${esc(r.code + " · " + r.name)} (${r.comm_pct}%)</option>`).join("")}</select></label>
+          <label>Commission % (optional)<input id="as_pct" type="number" step="0.01" placeholder="agent's rate"></label>
+          <label>Client (all their policies)<select id="as_cl"><option value="">—</option></select></label>
+          <label style="grid-column:1/-1">Or policy numbers<input id="as_pol" placeholder="e.g. PIL11/20/26/1045, PIL11/20/26/1046"></label></div>
+        <button class="btn" id="as_go">Give to agent</button></div>` : "") +
+      `<div class="card"><div class="row" style="justify-content:space-between"><h2>${board ? "Agents and brokers" : "Register"}</h2>${csvBtn("agents")}</div><div class="tablewrap" id="t"></div></div><div id="ag_view"></div>`;
+    table("t", rows.map((r) => board ? { ...r, agent_type: TY[r.agent_type] } : { code: r.code, name: r.name, type: TY[r.agent_type], area: r.area, phone: r.phone, licence_no: r.licence_no, licence_expiry: r.licence_expiry, rate: r.comm_pct + "%", status: r.status, policies: r.policies, premium: r.premium, earned: r.earned, paid: r.paid, owed: r.owed, id: r.id }),
+      { hide: ["id"], extra: board ? null : (r) => `<button class="btn ghost sm" data-ag="${r.id}">${edit ? "Open / edit" : "Statement"}</button>` });
+    bindCsv();
+    document.querySelectorAll("[data-ag]").forEach((b) => (b.onclick = run(() => agentForm(+b.dataset.ag, edit))));
+    if (!edit) return;
+    $("ag_new").onclick = () => agentForm(null, true);
+    kapi({ action: "uw_files" }).then((x) => { $("as_cl").innerHTML = '<option value="">—</option>' + x.rows.slice().sort((a, b) => String(a.client).localeCompare(b.client)).map((r) => `<option value="${r.party_id}">${esc(r.client)}</option>`).join(""); }).catch(() => {});
+    $("as_go").onclick = run(async () => {
+      const agent = $("as_ag"), cl = $("as_cl");
+      if (!cl.value && !$("as_pol").value.trim()) throw new Error("Enter policy numbers or choose a client");
+      const who = agent.value ? agent.options[agent.selectedIndex].text : "no agent (direct)";
+      if (!confirm(`Give ${cl.value ? "ALL policies of " + cl.options[cl.selectedIndex].text : $("as_pol").value.trim()} to ${who}?`)) return;
+      const x = await gapi({ action: "agent_assign", k: { agent_id: agent.value || null, comm_pct: $("as_pct").value, party_id: cl.value || null, policy_nos: $("as_pol").value } });
+      say(`${x.count} polic${x.count === 1 ? "y" : "ies"} given to ${who} at ${x.rate}%${x.adjusted ? " · commission already booked moved on " + x.adjusted : ""}`); VIEWS.u_agents(); });
   },
   // ===== KYC (v3.5) =====
   async s_kyc() {
@@ -654,11 +733,12 @@ const VIEWS = {
   async a_debtors() { LAST = await list("debtors"); V().innerHTML = `<div class="card"><div class="row" style="justify-content:space-between"><h2>Premium owed to Platinum</h2>${csvBtn("debtors")}</div><div class="tablewrap" id="t"></div></div>`; table("t", LAST); bindCsv(); },
   async a_comm() {
     LAST = await list("commissions");
-    V().innerHTML = `<div class="card"><h2>Pay a broker / agent</h2><div class="grid"><label>Broker<input id="k_b"></label><label>Amount (USD)<input id="k_a" inputmode="decimal"></label>
+    V().innerHTML = `<div class="card"><h2>Pay a broker / agent</h2><div class="grid"><label>Agent / broker<select id="k_b"><option value="">Choose…</option></select></label><label>Amount (USD)<input id="k_a" inputmode="decimal"></label>
       <label>Paid by<select id="k_m"><option value="bank">Bank</option><option value="cash">Cash</option></select></label></div><button class="btn" id="k_go">Post payment</button></div>
       <div class="card"><h2>Commissions</h2><p class="note">Earned when the client pays the premium.</p><div class="tablewrap" id="t"></div></div>`;
     table("t", LAST);
-    $("k_go").onclick = run(async () => { await api({ action: "pay_commission", c: { broker: $("k_b").value.trim(), amount: $("k_a").value, method: $("k_m").value } }); say("Commission payment posted"); VIEWS.a_comm(); });
+    gapi({ action: "agent_list" }).then((x) => { $("k_b").innerHTML = '<option value="">Choose…</option>' + x.rows.map((r) => `<option value="${esc(r.name)}">${esc(r.code + " · " + r.name)} — owed USD ${money(r.owed)}</option>`).join(""); }).catch(() => {});
+    $("k_go").onclick = run(async () => { if (!$("k_b").value) throw new Error("Choose the agent"); await api({ action: "pay_commission", c: { broker: $("k_b").value.trim(), amount: $("k_a").value, method: $("k_m").value } }); say("Commission payment posted"); VIEWS.a_comm(); });
   },
   async a_payroll() {
     const [st, ps] = await Promise.all([list("staff"), list("payroll")]);

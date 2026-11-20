@@ -160,6 +160,24 @@ async function api(body) {
   return j;
 }
 const list = async (name) => (await api({ action: "list", name })).rows;
+async function agentAccount(id, edit) {
+  const { agent: g, policies, lines } = await gapi({ action: "agent_get", id });
+  const tot = (k) => policies.reduce((a, p) => a + Number(p[k] || 0), 0);
+  const earned = lines.reduce((a, l) => a + Number(l.earned || 0), 0), paid = lines.reduce((a, l) => a + Number(l.paid || 0), 0);
+  let bal = 0; const stmt = lines.map((l) => { bal += Number(l.earned || 0) - Number(l.paid || 0); return { date: String(l.jdate).slice(0, 10), details: l.memo, earned: l.earned, paid: l.paid, balance: bal }; });
+  const box = $("ag_view"); if ($("ag_form")) $("ag_form").innerHTML = "";
+  box.innerHTML = `<div class="card"><div class="row" style="justify-content:space-between"><div><h2>Account — ${esc(g.code)} · ${esc(g.name)}</h2><p class="note">${g.agent_type === "broker" ? "Broker" : "Agent"} · ${esc(g.status)} · commission ${g.comm_pct}%${g.phone ? " · " + esc(g.phone) : ""}${g.licence_no ? " · licence " + esc(g.licence_no) : ""}${g.licence_expiry ? " (expires " + String(g.licence_expiry).slice(0, 10) + ")" : ""}</p></div>
+      <div class="row">${edit ? `<button class="btn ghost sm" id="acc_edit">Edit</button>` : ""}<button class="btn ghost sm" id="acc_close">Close</button></div></div>
+    ${kpis([["Policies", policies.length], ["Premium (USD)", money(tot("gross_premium"))], ["Client paid (USD)", money(tot("received"))], ["Commission earned", money(earned)], ["Commission paid", money(paid)], ["Commission owed", money(earned - paid), earned - paid > 0]])}
+    <h2 style="margin-top:12px">Policies under this ${g.agent_type === "broker" ? "broker" : "agent"}</h2><div class="tablewrap" id="acc_p"></div>
+    <h2 style="margin-top:16px">Commission statement</h2><div class="tablewrap" id="acc_s"></div></div>`;
+  table("acc_p", policies.map(({ comm_pct, gross_premium, ...p }) => ({ policy_no: p.policy_no, was: p.old_policy_no, client: p.client, cover: p.class_code, start_date: p.start_date, end_date: p.end_date, status: p.status, premium: gross_premium, received: p.received, rate: comm_pct + "%", commission: p.commission })),
+    { extra: (r) => printBtn(r.policy_no) });
+  table("acc_s", stmt);
+  $("acc_close").onclick = () => (box.innerHTML = "");
+  if ($("acc_edit")) $("acc_edit").onclick = run(() => agentForm(id, true));
+  box.scrollIntoView({ behavior: "smooth" });
+}
 async function agentForm(id, edit) {
   const d = id ? await gapi({ action: "agent_get", id }) : { agent: { agent_type: "agent", status: "active", comm_pct: "", extra: [] }, policies: [], lines: [] };
   const g = d.agent; let extra = Array.isArray(g.extra) ? g.extra.slice() : [];
@@ -549,9 +567,10 @@ const VIEWS = {
         <button class="btn" id="as_go" style="margin-top:10px">Give to agent</button></div>` : "") +
       `<div class="card"><div class="row" style="justify-content:space-between"><h2>${board ? "Agents and brokers" : "Register"}</h2>${csvBtn("agents")}</div><div class="tablewrap" id="t"></div></div><div id="ag_view"></div>`;
     table("t", rows.map((r) => board ? { ...r, agent_type: TY[r.agent_type] } : { code: r.code, name: r.name, type: TY[r.agent_type], area: r.area, phone: r.phone, licence_no: r.licence_no, licence_expiry: r.licence_expiry, rate: r.comm_pct + "%", status: r.status, policies: r.policies, premium: r.premium, earned: r.earned, paid: r.paid, owed: r.owed, id: r.id }),
-      { hide: ["id"], extra: board ? null : (r) => `<button class="btn ghost sm" data-ag="${r.id}">${edit ? "Open / edit" : "Statement"}</button>` });
+      { hide: ["id"], extra: board ? null : (r) => `<button class="btn sm" data-acc="${r.id}">Account</button>${edit ? ` <button class="btn ghost sm" data-ag="${r.id}">Edit</button>` : ""}` });
     bindCsv();
     document.querySelectorAll("[data-ag]").forEach((b) => (b.onclick = run(() => agentForm(+b.dataset.ag, edit))));
+    document.querySelectorAll("[data-acc]").forEach((b) => (b.onclick = run(() => agentAccount(+b.dataset.acc, edit))));
     if (!edit) return;
     $("ag_new").onclick = () => agentForm(null, true);
     let POL = []; const tick = new Set();

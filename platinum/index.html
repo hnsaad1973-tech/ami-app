@@ -207,7 +207,7 @@ async function agentForm(id, edit) {
   };
   drawX();
   $("ag_close").onclick = () => (box.innerHTML = "");
-  if ($("ag_give")) $("ag_give").onclick = () => { $("as_ag").value = String(id); $("as_card").scrollIntoView({ behavior: "smooth" }); };
+  if ($("ag_give")) $("ag_give").onclick = () => { PRESEL_AG = String(id); openTab("ag_alloc"); document.querySelectorAll("[data-t]").forEach((b) => b.setAttribute("aria-pressed", b.dataset.t === "ag_alloc")); };
   if (edit) {
     $("ag_add").onclick = () => { extra.push({ label: "", value: "" }); drawX(); };
     $("ag_save").onclick = run(async () => {
@@ -222,26 +222,6 @@ async function agentForm(id, edit) {
   box.scrollIntoView({ behavior: "smooth" });
 }
 
-// ----- give a client's policies to an agent / broker (v4.4) -----
-async function clientAgents() {
-  try { const x = await gapi({ action: "agent_policies" }); const m = {};
-    x.rows.forEach((r) => { const k = String(r.client || "").toUpperCase(); (m[k] = m[k] || new Set()).add(r.agent ? r.agent_code + " · " + r.agent : "Direct"); });
-    return (name) => [...(m[String(name || "").toUpperCase()] || [])].join(", "); } catch (_) { return () => ""; }
-}
-async function agentPick(partyId, client, after) {
-  const { rows } = await gapi({ action: "agent_list" });
-  let d = $("agpick"); if (!d) { d = document.createElement("div"); d.id = "agpick"; document.body.appendChild(d); }
-  d.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:999;display:flex;align-items:center;justify-content:center;padding:16px";
-  d.innerHTML = `<div class="card" style="max-width:460px;width:100%;margin:0"><h2>Give to agent / broker</h2><p class="note"><b>${esc(client)}</b> — all this client's policies go under the agent you choose and their commission goes to the agent's account. The client stays in the client list as before.</p>
-    <div class="grid"><label style="grid-column:1/-1">Agent / broker<select id="ap_ag"><option value="">No agent (direct)</option>${rows.filter((r) => r.status === "active").map((r) => `<option value="${r.id}">${esc(r.code + " · " + r.name)} (${r.comm_pct}%)</option>`).join("")}</select></label>
-    <label style="grid-column:1/-1">Commission % (optional)<input id="ap_pct" type="number" step="0.01" placeholder="agent's own rate"></label></div>
-    <div class="row"><button class="btn" id="ap_go">Give to agent</button><button class="btn ghost" id="ap_x">Cancel</button></div></div>`;
-  $("ap_x").onclick = () => d.remove(); d.onclick = (e) => { if (e.target === d) d.remove(); };
-  $("ap_go").onclick = run(async () => {
-    const a = $("ap_ag"); const who = a.value ? a.options[a.selectedIndex].text : "no agent (direct)";
-    const x = await gapi({ action: "agent_assign", k: { agent_id: a.value || null, comm_pct: $("ap_pct").value, party_id: partyId } });
-    d.remove(); say(`${client}: ${x.count} polic${x.count === 1 ? "y" : "ies"} given to ${who} at ${x.rate}%`); if (after) after(); });
-}
 async function kapi(body) {
   const { data: { session } } = await sb.auth.getSession();
   if (!session) { showLogin(); throw new Error("Please sign in"); }
@@ -310,19 +290,22 @@ function bindCsv() {
 }
 
 // ---------- sections by position ----------
+const TAB_ROLES = { ag_alloc: ["underwriter", "gm", "admin"], ag_pol: ["underwriter", "gm", "admin", "accountant"], a_comm: ["accountant", "admin"] };
 const SECTIONS = {
   sales: { name: "Sales", desc: "Enter policy requests for underwriting, issue approved policies to clients, follow up payment, renewals.", roles: ["sales", "underwriter", "gm", "admin"],
     tabs: { s_new: "New policy request", s_mine: "My policies", s_clients: "Client contact info", s_kyc: "KYC", s_guide: "Product guide" } },
   uw: { name: "Underwriting", desc: "Approve referred risks, check documents, product rules, claims and treaty.", roles: ["underwriter", "gm", "admin"],
-    tabs: { u_queue: "Review queue", u_files: "Client files", u_certs: "Stickers & Brown Cards", u_agents: "Agents & brokers", s_kyc: "KYC checks", u_all: "All policies", u_endorse: "Client clauses", u_word: "Standard wordings", u_rules: "Product rules", u_lib: "Policy library", u_claims: "Claims", u_treaty: "Africa Re" } },
-  acct: { name: "Accounting", desc: "Receipts, debtors, commissions, payroll, month end, reports and compliance.", roles: ["accountant", "gm", "admin"],
-    tabs: { a_receipts: "Receipts", a_claims: "Claim payments", a_debtors: "Debtors", a_comm: "Commissions", u_agents: "Agents & brokers", a_payroll: "Payroll", a_reports: "Reports", a_close: "Month end", g_cbl: "CBL quarterly", g_are: "Africa Re quarterly", a_comp: "Compliance" } },
+    tabs: { u_queue: "Review queue", u_files: "Client files", u_certs: "Stickers & Brown Cards", s_kyc: "KYC checks", u_all: "All policies", u_endorse: "Client clauses", u_word: "Standard wordings", u_rules: "Product rules", u_lib: "Policy library", u_claims: "Claims", u_treaty: "Africa Re" } },
+  acct: { name: "Accounting", desc: "Receipts, debtors, payroll, month end, reports and compliance.", roles: ["accountant", "gm", "admin"],
+    tabs: { a_receipts: "Receipts", a_claims: "Claim payments", a_debtors: "Debtors", a_payroll: "Payroll", a_reports: "Reports", a_close: "Month end", g_cbl: "CBL quarterly", g_are: "Africa Re quarterly", a_comp: "Compliance" } },
   gm: { name: "General Manager", desc: "Company overview, alerts, final approval of every policy, CBL and Africa Re quarterly reports, compliance, board report.", roles: ["gm", "admin"],
-    tabs: { g_over: "Overview", g_alerts: "Alerts", g_appr: "Final approvals", g_claims: "Claim approvals", s_clients: "All client contacts", s_kyc: "KYC", u_files: "Client files", u_certs: "Stickers & Brown Cards", u_agents: "Agents & brokers", g_cbl: "CBL quarterly", g_are: "Africa Re quarterly", a_comp: "Compliance", b_report: "Board report" } },
+    tabs: { g_over: "Overview", g_alerts: "Alerts", g_appr: "Final approvals", g_claims: "Claim approvals", s_clients: "All client contacts", s_kyc: "KYC", u_files: "Client files", u_certs: "Stickers & Brown Cards", g_cbl: "CBL quarterly", g_are: "Africa Re quarterly", a_comp: "Compliance", b_report: "Board report" } },
   ceo: { name: "CEO", desc: "Full access: overview, team and access, sign-off of product rules, audit trail.", roles: ["admin"],
-    tabs: { g_over: "Overview", s_clients: "All client contacts", s_kyc: "KYC", u_files: "Client files", u_certs: "Stickers & Brown Cards", u_agents: "Agents & brokers", c_team: "Team & access", c_rules: "Sign off rules", c_word: "Sign off wordings", c_audit: "Audit trail", g_alerts: "Alerts" } },
+    tabs: { g_over: "Overview", s_clients: "All client contacts", s_kyc: "KYC", u_files: "Client files", u_certs: "Stickers & Brown Cards", c_team: "Team & access", c_rules: "Sign off rules", c_word: "Sign off wordings", c_audit: "Audit trail", g_alerts: "Alerts" } },
+  agents: { name: "Agents & Brokers", desc: "One place for agents and brokers: register, give policies to them, their accounts, and commission payments.", roles: ["underwriter", "gm", "admin", "accountant", "board"],
+    tabs: { ag_list: "Agents & brokers", ag_alloc: "Give policies", ag_pol: "Agents' policies", a_comm: "Commission payments" } },
   board: { name: "Board", desc: "Monthly board report and risks above management limits for approval.", roles: ["board", "admin"],
-    tabs: { b_report: "Monthly report", b_approvals: "Above-limit approvals", b_kyc: "KYC summary", u_files: "Client files", u_agents: "Agents & brokers", c_audit: "Audit trail", a_comp: "Compliance" } },
+    tabs: { b_report: "Monthly report", b_approvals: "Above-limit approvals", b_kyc: "KYC summary", u_files: "Client files", c_audit: "Audit trail", a_comp: "Compliance" } },
 };
 
 function showLogin() { document.body.classList.add("out"); try { const e = localStorage.getItem("plat_email"); if (e && !$("em").value) $("em").value = e; } catch (_) {} $("login").classList.remove("hide"); $("chooser").classList.add("hide"); $("tabs").classList.add("hide"); V().innerHTML = ""; }
@@ -339,12 +322,15 @@ function openSection(k) {
   const s = SECTIONS[k]; CUR_SEC = k;
   $("chooser").classList.add("hide"); $("where").textContent = s.name;
   if (Object.values(SECTIONS).filter((x) => x.roles.includes(ME.role)).length > 1) $("homeBtn").classList.remove("hide");
-  $("tabs").innerHTML = Object.entries(s.tabs).map(([id, n], i) => `<button class="tab" data-t="${id}" aria-pressed="${i === 0}">${n}</button>`).join("");
+  const tabs = Object.fromEntries(Object.entries(s.tabs).filter(([id]) => !TAB_ROLES[id] || TAB_ROLES[id].includes(ME.role)));
+  $("tabs").innerHTML = Object.entries(tabs).map(([id, n], i) => `<button class="tab" data-t="${id}" aria-pressed="${i === 0}">${n}</button>`).join("");
   $("tabs").classList.remove("hide");
   document.querySelectorAll("[data-t]").forEach((b) => (b.onclick = () => openTab(b.dataset.t)));
-  openTab(Object.keys(s.tabs)[0]);
+  openTab(Object.keys(tabs)[0]);
 }
+let CUR_TAB = "", PRESEL_AG = "";
 function openTab(id) {
+  CUR_TAB = id;
   document.querySelectorAll("[data-t]").forEach((b) => b.setAttribute("aria-pressed", b.dataset.t === id));
   V().innerHTML = '<p class="note">Loading…</p>';
   run(VIEWS[id])();
@@ -396,7 +382,6 @@ const VIEWS = {
       <div id="n_q"></div>
       <div id="n_issue" class="hide card" style="background:var(--navy)">
         <div class="grid">
-          <label>Agent / broker<select id="n_agent"><option value="">Direct — no agent</option></select></label>
           <label>Client email (optional)<input id="n_email" inputmode="email"></label>
           <label id="n_ovL" class="hide">Premium (underwriter)<input id="n_ov" inputmode="decimal" placeholder="Blank = rate table"></label>
         </div>
@@ -406,8 +391,6 @@ const VIEWS = {
       </div>
     </div>`;
     if (["underwriter", "gm", "admin"].includes(ME.role)) $("n_ovL").classList.remove("hide"); else $("n_docsL").classList.add("hide");
-    gapi({ action: "agent_list" }).then((x) => { let last = ""; try { last = localStorage.getItem("plat_agent") || ""; } catch (_) {}
-      $("n_agent").innerHTML = '<option value="">Direct — no agent</option>' + x.rows.filter((r) => !r.status || r.status === "active").map((r) => `<option value="${r.id}"${String(r.id) === last ? " selected" : ""}>${esc(r.code + " · " + r.name)}</option>`).join(""); }).catch(() => {});
     api({ action: "my_clients" }).then((c) => ($("n_cl").innerHTML = c.rows.map((x) => `<option value="${esc(x.client)}">`).join(""))).catch(() => {});
     const isTariff = () => ["MTPL", "MFLEET"].includes($("n_class").value);
     const addItem = () => {
@@ -437,11 +420,7 @@ const VIEWS = {
     });
     $("n_go").onclick = run(async () => {
       const { policy: p } = await api({ action: "create_policy", p: read() });
-      const ag = $("n_agent"); let agMsg = "";
-      try { localStorage.setItem("plat_agent", ag.value); } catch (_) {}
-      if (ag.value) { try { await gapi({ action: "agent_assign", k: { agent_id: ag.value, policy_nos: [p.policy_no] } }); agMsg = " under " + ag.options[ag.selectedIndex].text; }
-        catch (e) { agMsg = " — agent not set (" + e.message + "), set it under Agents & brokers"; } }
-      say(`${p.policy_no} sent to Underwriting${agMsg}. You will find it under My policies when it is approved.`);
+      say(`${p.policy_no} sent to Underwriting. You will find it under My policies when it is approved.`);
       ["n_holder", "n_phone", "n_email", "n_note", "n_ov"].forEach((i) => ($(i).value = "")); reset();
     });
   },
@@ -492,10 +471,7 @@ const VIEWS = {
         say("Contact saved to Platinum's client records"); VIEWS.s_clients(); });
       return;
     }
-    LAST = await list("clients"); const agOf = await clientAgents();
-    V().innerHTML = `<div class="card"><div class="row" style="justify-content:space-between"><h2>All client contacts — consolidated</h2>${csvBtn("clients")}</div><p class="note">Tap <b>Agent</b> on a client to put all their policies under an agent or broker.</p><div class="tablewrap" id="t"></div></div>`;
-    table("t", LAST.map((r) => ({ name: r.name, agent: agOf(r.name), ...r })), { hide: ["id"], extra: (r) => r.policies > 0 ? `<button class="btn ghost sm" data-ap="${r.id}" data-apn="${esc(r.name)}">Agent</button>` : "" }); bindCsv();
-    document.querySelectorAll("[data-ap]").forEach((b) => (b.onclick = run(() => agentPick(+b.dataset.ap, b.dataset.apn, () => VIEWS.s_clients())))); },
+    LAST = await list("clients"); V().innerHTML = `<div class="card"><div class="row" style="justify-content:space-between"><h2>All client contacts — consolidated</h2>${csvBtn("clients")}</div><div class="tablewrap" id="t"></div></div>`; table("t", LAST, { hide: ["id"] }); bindCsv(); },
   async u_files() {
     const rows = (await kapi({ action: "uw_files" })).rows; LAST = rows;
     const board = ME.role === "board";
@@ -505,9 +481,7 @@ const VIEWS = {
       (board ? "" : `<div class="card"><div class="row" style="justify-content:space-between"><div><h2>Replace old policies</h2><p class="note">Generate new Platinum policies (new number, Platinum wording, printable) for every old policy from the opening book and the register. Old numbers are kept for reference. Premiums and accounts do not change.</p></div><button class="btn" id="ri_all">Replace all old policies</button></div></div>`) +
       `<div class="card"><h2>Client underwriting files</h2><p class="note">${board ? "One file per client: covers, vehicles and premium. Underwriting signs each file." : "One file per client, built from the book: covers, vehicles, premium, unpaid balance, claims, fleet terms, deductibles and special terms. Check it, adjust the terms, then sign. Open a file to edit."}</p><div class="tablewrap" id="t"></div></div><div id="uf"></div>`;
     table("t", board ? rows : rows.map((r) => ({ client: r.client, kyc: r.kyc, covers: r.covers, policies: r.policies, vehicles: r.vehicles, total_premium: r.total_premium, outstanding: r.outstanding, claims: r.claims, next_renewal: r.next_renewal, status: r.status === "proposed" ? "To sign" : r.status, party_id: r.party_id })),
-      { hide: ["party_id"], extra: board ? null : (r) => `<button class="btn sm ${r.status === "To sign" ? "" : "ghost"}" data-uf="${r.party_id}">Open / edit</button> <button class="btn ghost sm" data-ap="${r.party_id}" data-apn="${esc(r.client)}">Agent</button>` });
-    if (!board) { const agOf = await clientAgents(); document.querySelectorAll("#t tbody tr").forEach((tr, i) => { const td = tr.children[0]; const a = agOf(rows[i] && rows[i].client); if (td && a) td.innerHTML += `<br><span class="note">${esc(a)}</span>`; });
-      document.querySelectorAll("[data-ap]").forEach((b) => (b.onclick = run(() => agentPick(+b.dataset.ap, b.dataset.apn, () => VIEWS.u_files())))); }
+      { hide: ["party_id"], extra: board ? null : (r) => `<button class="btn sm ${r.status === "To sign" ? "" : "ghost"}" data-uf="${r.party_id}">Open / edit</button>` });
     document.querySelectorAll("[data-uf]").forEach((b) => (b.onclick = run(() => clientFile(+b.dataset.uf))));
     if ($("ri_all")) $("ri_all").onclick = run(async () => {
       if (!confirm("Generate new Platinum policies for ALL old policies (opening book and register)? Old numbers are kept for reference; premiums and accounts do not change.")) return;
@@ -554,10 +528,11 @@ const VIEWS = {
   // ===== Agents and brokers (v4.1) =====
   async u_agents() {
     const { rows, sum } = await gapi({ action: "agent_list" }); LAST = rows;
-    const board = ME.role === "board", acct = CUR_SEC === "acct", edit = !acct && ["underwriter", "gm", "admin"].includes(ME.role);
+    const board = ME.role === "board", mode = CUR_TAB === "ag_alloc" ? "alloc" : CUR_TAB === "ag_pol" ? "pol" : "list";
+    const acct = mode === "pol", canEdit = ["underwriter", "gm", "admin"].includes(ME.role), edit = mode === "list" && canEdit, alloc = mode === "alloc" && canEdit;
     const TY = { agent: "Agent", broker: "Broker" };
-    V().innerHTML = (board ? "" : kpis([["Active agents", sum.active], ["Licences expiring (30 days)", sum.licence_due, sum.licence_due > 0], ["Policies with no agent", sum.direct_policies], ["Commission owed (USD)", money(sum.owed), Number(sum.owed) > 0]])) +
-      (edit ? `<div class="card"><div class="row" style="justify-content:space-between"><div><h2>Agents and brokers</h2><p class="note">Register each agent or broker with their licence and commission rate, then give them their policies. Commission is earned when the client pays and is paid from Accounting → Commissions.</p></div><button class="btn" id="ag_new">＋ New agent / broker</button></div><div id="ag_form"></div></div>
+    V().innerHTML = (board || mode !== "list" ? "" : kpis([["Active agents", sum.active], ["Licences expiring (30 days)", sum.licence_due, sum.licence_due > 0], ["Policies with no agent", sum.direct_policies], ["Commission owed (USD)", money(sum.owed), Number(sum.owed) > 0]])) +
+      (edit ? `<div class="card"><div class="row" style="justify-content:space-between"><div><h2>Agents and brokers</h2><p class="note">Register each agent or broker with their licence and commission rate, then give them their policies. Commission is earned when the client pays and is paid from Agents & Brokers → Commission payments.</p></div><button class="btn" id="ag_new">＋ New agent / broker</button></div><div id="ag_form"></div></div>` : "") + (alloc ? `
       <div class="card" id="as_card"><h2>Give policies to an agent</h2><p class="note">Tick the policies, pick the agent, then tap <b>Give to agent</b>. Leave the rate empty to use the agent's own rate. Choose "No agent (direct)" to take policies away from an agent. Commission already booked on money received moves to the new agent.</p>
         <div class="grid"><label>Agent<select id="as_ag"><option value="">No agent (direct)</option>${rows.filter((r) => r.status === "active").map((r) => `<option value="${r.id}">${esc(r.code + " · " + r.name)} (${r.comm_pct}%)</option>`).join("")}</select></label>
           <label>Commission % (optional)<input id="as_pct" type="number" step="0.01" placeholder="agent's rate"></label>
@@ -565,10 +540,10 @@ const VIEWS = {
           <label>Search<input id="as_q" placeholder="Client or policy number"></label></div>
         <div class="row" style="justify-content:space-between;margin:8px 0"><label style="flex-direction:row;align-items:center;gap:8px"><input type="checkbox" id="as_all" style="width:22px;min-height:22px"> Tick all shown</label><span class="note" id="as_n">0 ticked</span></div>
         <div class="tablewrap" id="as_t"><p class="note" style="padding:12px">Loading policies…</p></div>
-        <button class="btn" id="as_go" style="margin-top:10px">Give to agent</button></div>` : "") +
-      `<div class="card"><div class="row" style="justify-content:space-between"><h2>${board || acct ? "Agents and brokers" : "Register"}</h2>${csvBtn("agents")}</div><div class="tablewrap" id="t"></div></div><div id="ag_view"></div>` +
+        <button class="btn" id="as_go" style="margin-top:10px">Give to agent</button></div>` : "") + (mode !== "list" ? "" :
+      `<div class="card"><div class="row" style="justify-content:space-between"><h2>${board || acct ? "Agents and brokers" : "Register"}</h2>${csvBtn("agents")}</div><div class="tablewrap" id="t"></div></div><div id="ag_view"></div>`) +
       (acct ? `<div class="card"><h2>Policies given to agents and brokers</h2><p class="note">Only policies under an agent or broker. Tap <b>Account</b> on an agent for their statement.</p><div class="tablewrap" id="acc_all"><p class="note" style="padding:12px">Loading…</p></div></div>` : "");
-    table("t", rows.map((r) => board ? { ...r, agent_type: TY[r.agent_type] } : { code: r.code, name: r.name, type: TY[r.agent_type], area: r.area, phone: r.phone, licence_no: r.licence_no, licence_expiry: r.licence_expiry, rate: r.comm_pct + "%", status: r.status, policies: r.policies, premium: r.premium, earned: r.earned, paid: r.paid, owed: r.owed, id: r.id }),
+    if (mode === "list") table("t", rows.map((r) => board ? { ...r, agent_type: TY[r.agent_type] } : { code: r.code, name: r.name, type: TY[r.agent_type], area: r.area, phone: r.phone, licence_no: r.licence_no, licence_expiry: r.licence_expiry, rate: r.comm_pct + "%", status: r.status, policies: r.policies, premium: r.premium, earned: r.earned, paid: r.paid, owed: r.owed, id: r.id }),
       { hide: ["id"], extra: board ? null : (r) => `<button class="btn sm" data-acc="${r.id}">Account</button>${edit ? ` <button class="btn ghost sm" data-ag="${r.id}">Edit</button>` : ""}` });
     bindCsv();
     document.querySelectorAll("[data-ag]").forEach((b) => (b.onclick = run(() => agentForm(+b.dataset.ag, edit))));
@@ -578,8 +553,9 @@ const VIEWS = {
       Promise.all(withPol.map((r) => gapi({ action: "agent_get", id: r.id }).then((x) => x.policies.map((p) => ({ agent: r.code + " · " + r.name, policy_no: p.policy_no, client: p.client, cover: p.class_code, start_date: p.start_date, end_date: p.end_date, status: p.status, premium: p.gross_premium, received: p.received, rate: p.comm_pct + "%", commission: p.commission })))))
         .then((all) => table("acc_all", all.flat())).catch((e) => ($("acc_all").innerHTML = `<p class="note" style="padding:12px">${esc(e.message)}</p>`));
     }
-    if (!edit) return;
-    $("ag_new").onclick = () => agentForm(null, true);
+    if (edit) $("ag_new").onclick = () => agentForm(null, true);
+    if (!alloc) return;
+    if (PRESEL_AG) { $("as_ag").value = PRESEL_AG; PRESEL_AG = ""; }
     let POL = []; const tick = new Set();
     const drawP = () => {
       const f = $("as_f").value, q = $("as_q").value.toLowerCase();
@@ -601,6 +577,7 @@ const VIEWS = {
       const x = await gapi({ action: "agent_assign", k: { agent_id: agent.value || null, comm_pct: $("as_pct").value, policy_ids: [...tick] } });
       say(`${x.count} polic${x.count === 1 ? "y" : "ies"} given to ${who} at ${x.rate}%${x.adjusted ? " · commission already booked moved on " + x.adjusted : ""}`); VIEWS.u_agents(); });
   },
+  ag_list() { return VIEWS.u_agents(); }, ag_alloc() { return VIEWS.u_agents(); }, ag_pol() { return VIEWS.u_agents(); },
   // ===== KYC (v3.5) =====
   async s_kyc() {
     const rows = (await kapi({ action: "kyc_list" })).rows; LAST = rows;

@@ -142,8 +142,8 @@ function table(box, rows, opts = {}) {
   box.innerHTML = h + "</tbody></table>";
 }
 const kpis = (arr) => `<div class="kpis">${arr.map(([l, v, red]) => `<div class="kpi${red ? " red" : ""}"><div class="l">${l}</div><div class="v">${v}</div></div>`).join("")}</div>`;
-const STAGE = { submitted: "With Underwriting", referred: "With Underwriting", returned: "Returned to Sales", uw_approved: "With GM (final approval)", board: "With Board", approved: "Approved", declined: "Declined" };
-const stage = (r) => r.uw_status === "approved" ? (r.issued_to_client_at ? (r.status === "active" ? "Issued · paid · in force" : "Issued · waiting for payment") : "Approved · issue to client") : STAGE[r.uw_status] || r.uw_status;
+const STAGE = { submitted: "With Underwriting", referred: "Awaiting facultative", returned: "Returned to Sales", uw_approved: "With GM (final approval)", board: "With Board", approved: "Approved", declined: "Declined" };
+const stage = (r) => r.lapsed_at ? "Lapsed — not paid in time" : r.uw_status === "approved" ? (r.status === "active" ? "Paid · in force" : (r.issued_to_client_at ? "Issued · " : "Approved · issue now · ") + (r.pay_by ? "pay by " + String(r.pay_by).slice(0, 10) : "waiting for payment")) : STAGE[r.uw_status] || r.uw_status;
 function expoBox(ex) {
   if (!ex) return "";
   return `<div class="quote"><b>Africa Re and Platinum exposure</b><br>${esc(ex.section)}${ex.bound ? "" : " (offer terms, not yet bound)"}<br>
@@ -289,12 +289,12 @@ const VIEWS = {
   },
   async s_mine() {
     const rows = (await api({ action: "my_policies" })).rows.map((r) => ({ ...r, stage: stage(r) }));
-    const toIssue = rows.filter((r) => r.uw_status === "approved" && !r.issued_to_client_at);
+    const toIssue = rows.filter((r) => r.uw_status === "approved" && !r.issued_to_client_at && !r.lapsed_at);
     const returned = rows.filter((r) => r.uw_status === "returned");
-    const unpaid = rows.filter((r) => r.uw_status === "approved" && Number(r.balance) > 0);
+    const unpaid = rows.filter((r) => r.uw_status === "approved" && Number(r.balance) > 0 && !r.lapsed_at);
     const soon = rows.filter((r) => r.uw_status === "approved" && r.end_date && new Date(r.end_date) - new Date() < 30 * 864e5 && r.end_date >= today());
-    V().innerHTML = `${kpis([["Approved — issue to client", toIssue.length, toIssue.length > 0], ["Returned to you", returned.length, returned.length > 0], ["Waiting for payment", unpaid.length], ["In approval", rows.filter((r) => ["submitted", "referred", "uw_approved", "board"].includes(r.uw_status)).length]])}
-      ${toIssue.length ? `<div class="card"><h2>Approved — issue to the client now</h2><p class="note">Final approval is given. Issue the stamped policy and send it to the client for immediate payment. Cover starts only when the premium is paid (CBL No Premium, No Cover).</p><div class="tablewrap" id="t_issue"></div></div>` : ""}
+    V().innerHTML = `${kpis([["Approved — issue to client", toIssue.length, toIssue.length > 0], ["Returned to you", returned.length, returned.length > 0], ["Waiting for payment", unpaid.length, unpaid.some((r) => r.pay_by && String(r.pay_by).slice(0, 10) <= today())], ["In approval", rows.filter((r) => ["submitted", "referred", "uw_approved", "board"].includes(r.uw_status)).length]])}
+      ${toIssue.length ? `<div class="card"><h2>Approved — issue to the client now</h2><p class="note">Final approval is given. Issue the stamped policy and send it to the client for immediate payment. Cover starts only when the premium is paid (CBL No Premium, No Cover). If nothing is paid within 7 days of approval, the policy lapses automatically.</p><div class="tablewrap" id="t_issue"></div></div>` : ""}
       ${returned.length ? `<div class="card"><h2>Returned to you by Underwriting</h2><div class="tablewrap" id="t_ret"></div></div>` : ""}
       <div class="card"><h2>Take a payment</h2><div class="grid">
         <label>Policy no.<select id="r_pol">${unpaid.map((r) => `<option value="${esc(r.policy_no)}">${esc(r.policy_no)} — ${esc(r.holder)} (${money(r.balance)})</option>`).join("")}</select></label>
@@ -303,10 +303,10 @@ const VIEWS = {
         <label>Receipt / reference<input id="r_ref"></label></div><button class="btn" id="r_go">Record payment</button></div>
       ${soon.length ? `<div class="card"><h2>Renewals due in 30 days</h2><div class="tablewrap" id="t_soon"></div></div>` : ""}
       <div class="card"><h2>My policies</h2><div class="tablewrap" id="t_mine"></div></div>`;
-    const hide = ["id", "class_code", "created_by", "uw_status", "referred_to", "docs_verified_at", "items", "issued_to_client_at", "status"];
+    const hide = ["id", "class_code", "created_by", "uw_status", "referred_to", "docs_verified_at", "items", "issued_to_client_at", "status", "lapsed_at"];
     const send = (r) => {
       const total = money(Number(r.gross_premium) + Number(r.policy_fee || 0));
-      const msg = `Dear ${r.holder}, your Platinum Insurers policy ${r.policy_no} (${r.class_name}) has been approved. Premium due: USD ${total}. Please settle today at our office (Stop & Shop Building, Randall Street, Monrovia) or by bank transfer — cover starts only when the premium is received. Thank you. Platinum Insurers, Inc.`;
+      const msg = `Dear ${r.holder}, your Platinum Insurers policy ${r.policy_no} (${r.class_name}) has been approved. Premium due: USD ${total}${r.pay_by ? ", to be paid by " + String(r.pay_by).slice(0, 10) : ""}. Please settle today at our office (Stop & Shop Building, Randall Street, Monrovia) or by bank transfer — cover starts only when the premium is received, and the approval lapses if it is not paid in time. Thank you. Platinum Insurers, Inc.`;
       const ph = String(r.phone || "").replace(/[^\d]/g, "").replace(/^0/, "231");
       return `${ph ? `<a class="btn ghost sm" style="display:inline-flex;align-items:center;text-decoration:none" target="_blank" href="https://wa.me/${ph}?text=${encodeURIComponent(msg)}">WhatsApp client</a> ` : ""}<a class="btn ghost sm" style="display:inline-flex;align-items:center;text-decoration:none" href="mailto:?subject=${encodeURIComponent("Your Platinum Insurers policy " + r.policy_no)}&body=${encodeURIComponent(msg + "\n\nYour policy document is attached.")}">Email client</a>`;
     };
@@ -332,17 +332,23 @@ const VIEWS = {
   // ===== UNDERWRITING =====
   async u_queue() {
     const rows = await list("uw_queue");
-    const todo = rows.filter((r) => ["submitted", "referred"].includes(r.uw_status));
+    const todo = rows.filter((r) => r.uw_status === "submitted");
+    const facw = rows.filter((r) => r.uw_status === "referred");
     const later = rows.filter((r) => ["uw_approved", "board", "returned"].includes(r.uw_status)).map((r) => ({ policy_no: r.policy_no, holder: r.holder, class_name: r.class_name, sum_insured: r.sum_insured, stage: STAGE[r.uw_status], deductible: r.deductible_text, signed_by: r.uw_signed_by }));
     const docs = rows.filter((r) => r.uw_status === "approved" && !r.docs_verified_at);
     V().innerHTML = `<div class="card"><h2>Policies to review (${todo.length})</h2>
       <p class="note">Check each policy against the product rules and the Africa Re treaty, set the deductible and conditions so Platinum is not over-exposed, then sign. Signed policies go automatically to the General Manager for final approval.</p>
       <div class="tablewrap" id="t"></div></div>
       <div id="rv"></div>
+      ${facw.length ? `<div class="card"><h2>Awaiting facultative reinsurance (${facw.length})</h2><p class="note">Signed by Underwriting but above Africa Re capacity. Place facultative cover, then confirm it here with the reinsurer and slip reference; the policy then goes to the General Manager.</p><div class="tablewrap" id="t_fac"></div></div>` : ""}
       <div class="card"><h2>Signed — with GM / Board / returned</h2><div class="tablewrap" id="t2"></div></div>
       ${docs.length ? `<div class="card"><h2>Approved — documents still to check</h2><p class="note">No claim is accepted for a loss earlier than 15 days after the documents are checked.</p><div class="tablewrap" id="t3"></div></div>` : ""}`;
     table("t", todo.map((r) => ({ policy_no: r.policy_no, holder: r.holder, class_name: r.class_name, sum_insured: r.sum_insured, gross_premium: r.gross_premium, from_sales: r.created_by, notes: r.referral_reason })), { extra: (r) => `<span class="row" style="flex-wrap:nowrap">${printBtn(r.policy_no)} <button class="btn sm" data-rv="${esc(r.policy_no)}">Review</button></span>` });
     table("t2", later, { extra: (r) => printBtn(r.policy_no) });
+    if (facw.length) table("t_fac", facw.map((r) => ({ policy_no: r.policy_no, holder: r.holder, class_name: r.class_name, sum_insured: r.sum_insured, deductible: r.deductible_text, since: r.stage_since })), { extra: (r) => `<span class="row" style="flex-wrap:nowrap">${printBtn(r.policy_no)} <button class="btn sm" data-fac="${esc(r.policy_no)}">Facultative confirmed</button></span>` });
+    document.querySelectorAll("[data-fac]").forEach((b) => (b.onclick = run(async () => {
+      const note = prompt(`Facultative for ${b.dataset.fac}: reinsurer, share placed and slip reference`); if (note === null) return;
+      await api({ action: "fac_confirm", policy_no: b.dataset.fac, note }); say(b.dataset.fac + " facultative confirmed — sent to the General Manager"); VIEWS.u_queue(); })));
     if (docs.length) table("t3", docs.map((r) => ({ policy_no: r.policy_no, holder: r.holder, class_name: r.class_name })), { extra: (r) => `<button class="btn sm" data-doc="${esc(r.policy_no)}">Documents checked</button>` });
     document.querySelectorAll("[data-doc]").forEach((b) => (b.onclick = run(async () => {
       const r = await api({ action: "verify_docs", policy_no: b.dataset.doc }); say(`Documents checked · claims accepted for losses from ${String(r.claims_from).slice(0, 10)}`); VIEWS.u_queue(); })));
@@ -356,7 +362,7 @@ const VIEWS = {
         <label>Deductible for this policy<textarea id="rv_ded">${esc(p.deductible_text || ru.deductible || "")}</textarea></label>
         <label>Conditions / warranties for this policy (printed on the schedule)<textarea id="rv_cond" placeholder="e.g. vehicles garaged at night; security guard on site">${esc(p.uw_conditions || "")}</textarea></label>
         <div class="grid"><label>Premium USD (blank = keep ${money(p.gross_premium)})<input id="rv_prem" inputmode="decimal"></label><label>Note / reason<input id="rv_note"></label></div>
-        <label style="flex-direction:row;align-items:center;gap:8px"><input type="checkbox" id="rv_fac" style="width:22px;min-height:22px" ${p.fac_confirmed ? "checked" : ""}> Facultative reinsurance confirmed in writing (only needed above capacity)</label>
+        <label style="flex-direction:row;align-items:center;gap:8px"><input type="checkbox" id="rv_fac" style="width:22px;min-height:22px" ${p.fac_confirmed ? "checked" : ""}> Facultative reinsurance already confirmed in writing (only needed above capacity — if not yet, sign and it waits under "Awaiting facultative")</label>
         <label style="flex-direction:row;align-items:center;gap:8px"><input type="checkbox" id="rv_docs" style="width:22px;min-height:22px" ${p.docs_verified_at ? "checked disabled" : ""}> Client documents checked</label>
         <div class="row"><button class="btn" id="rv_ok">Sign and send to GM</button><button class="btn ghost" id="rv_ret">Return to Sales</button><button class="btn ghost" id="rv_dec">Decline</button></div></div>`;
       table("rv_items", d.items, {});
@@ -364,7 +370,7 @@ const VIEWS = {
       const go = (decision) => run(async () => {
         if (decision !== "approve" && !$("rv_note").value.trim()) throw new Error("Write the reason in Note / reason");
         const r = await api({ action: "review", policy_no: p.policy_no, decision, deductible: $("rv_ded").value, conditions: $("rv_cond").value, premium: $("rv_prem").value, note: $("rv_note").value, fac_confirmed: $("rv_fac").checked, docs_verified: $("rv_docs").checked });
-        say(decision === "approve" ? `${p.policy_no} signed and sent to the General Manager` : decision === "return" ? `${p.policy_no} returned to Sales` : `${p.policy_no} declined`); VIEWS.u_queue();
+        say(decision === "approve" ? (r.status === "fac_pending" ? `${p.policy_no} signed — waiting for facultative before it goes to the GM` : `${p.policy_no} signed and sent to the General Manager`) : decision === "return" ? `${p.policy_no} returned to Sales` : `${p.policy_no} declined`); VIEWS.u_queue();
       });
       $("rv_ok").onclick = go("approve"); $("rv_ret").onclick = go("return"); $("rv_dec").onclick = go("decline");
     })));
@@ -372,7 +378,7 @@ const VIEWS = {
   async g_appr() {
     const rows = (await list("uw_queue")).filter((r) => r.uw_status === "uw_approved");
     V().innerHTML = `<div class="card"><h2>Waiting for your final approval (${rows.length})</h2>
-      <p class="note">Every policy comes here after Underwriting has checked it and signed. Your approval puts it on the books, cedes Africa Re's share and sends it back to Sales to issue to the client. Risks above USD 1,000,000 or above treaty capacity go on to the Board after you.</p>
+      <p class="note">Every policy comes here after Underwriting has checked it and signed. Your approval puts it on the books, cedes Africa Re's share and sends it back to Sales to issue to the client. Risks above USD 1,000,000 go on to the Board after you, which has 72 hours to decide. Target: decide within 24 hours.</p>
       <div class="tablewrap" id="t"></div></div><div id="gv"></div>`;
     table("t", rows.map((r) => ({ policy_no: r.policy_no, holder: r.holder, class_name: r.class_name, sum_insured: r.sum_insured, gross_premium: r.gross_premium, deductible: r.deductible_text, signed_by: r.uw_signed_by, board: r.board_approval })), { extra: (r) => `<span class="row" style="flex-wrap:nowrap">${printBtn(r.policy_no)} <button class="btn sm" data-gv="${esc(r.policy_no)}">Open</button></span>` });
     document.querySelectorAll("[data-gv]").forEach((b) => (b.onclick = run(async () => {
@@ -571,9 +577,9 @@ const VIEWS = {
     const set = () => ($("b_open").href = "board.html?m=" + $("b_m").value); $("b_m").onchange = set; set();
   },
   async b_approvals() {
-    const rows = (await list("uw_queue")).filter((r) => r.uw_status === "board" || (r.uw_status === "referred" && r.board_approval));
-    V().innerHTML = `<div class="card"><h2>Risks above management limits (${rows.length})</h2><p class="note">Signed by Underwriting and approved by the General Manager. Above USD 1,000,000 or above Africa Re capacity, facultative reinsurance must be confirmed in writing first.</p><div class="tablewrap" id="t"></div></div>`;
-    table("t", rows.map((r) => ({ policy_no: r.policy_no, holder: r.holder, class_name: r.class_name, sum_insured: r.sum_insured, gross_premium: r.gross_premium, deductible: r.deductible_text, conditions: r.uw_conditions, fac_confirmed: r.fac_confirmed })), { extra: (r) => `<span class="row" style="flex-wrap:nowrap">${printBtn(r.policy_no)} <button class="btn sm" data-ok="${esc(r.policy_no)}">Approve</button> <button class="btn ghost sm" data-no="${esc(r.policy_no)}">Decline</button></span>` });
+    const rows = (await list("uw_queue")).filter((r) => r.uw_status === "board");
+    V().innerHTML = `<div class="card"><h2>Risks above USD 1,000,000 (${rows.length})</h2><p class="note">Only risks above USD 1,000,000 come to the Board, after Underwriting has signed and the General Manager has approved. Facultative reinsurance is already confirmed. The Board has 72 hours from arrival; overdue items are flagged to the CEO.</p><div class="tablewrap" id="t"></div></div>`;
+    table("t", rows.map((r) => ({ policy_no: r.policy_no, holder: r.holder, class_name: r.class_name, sum_insured: r.sum_insured, gross_premium: r.gross_premium, deductible: r.deductible_text, conditions: r.uw_conditions, decide_by: r.board_due_at ? new Date(r.board_due_at).toLocaleString("en-GB", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" }) : "" })), { extra: (r) => `<span class="row" style="flex-wrap:nowrap">${printBtn(r.policy_no)} <button class="btn sm" data-ok="${esc(r.policy_no)}">Approve</button> <button class="btn ghost sm" data-no="${esc(r.policy_no)}">Decline</button></span>` });
     document.querySelectorAll("[data-ok]").forEach((b) => (b.onclick = run(async () => {
       const note = prompt(`Board approval for ${b.dataset.ok}. Note (optional):`); if (note === null) return;
       await api({ action: "uw_decide", policy_no: b.dataset.ok, decision: "approve", reason: note }); say(b.dataset.ok + " approved by the Board — back to Sales to issue"); VIEWS.b_approvals(); })));

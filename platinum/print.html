@@ -71,7 +71,8 @@ const approved = p.uw_status === "approved";
 const STG = { submitted: "WITH UNDERWRITING", referred: "WITH UNDERWRITING", returned: "RETURNED TO SALES", uw_approved: "WITH GENERAL MANAGER", board: "WITH THE BOARD" };
 const status = !approved ? `<span class="stamp warn">${p.uw_status === "declined" ? "DECLINED" : (STG[p.uw_status] || "NOT APPROVED") + " — NOT VALID"}</span>`
   : p.status === "active" ? `<span class="stamp ok">PAID — COVER IN FORCE</span>`
-  : `<span class="stamp warn">PREMIUM NOT PAID — NO COVER UNTIL PAID</span>`;
+  : p.lapsed_at ? `<span class="stamp warn">LAPSED — PREMIUM NOT PAID IN TIME — NO COVER</span>`
+  : `<span class="stamp warn">NOT IN FORCE UNTIL PAID${p.pay_by ? " — PAY BY " + d(p.pay_by) : ""}</span>`;
 const claimsFrom = p.docs_verified_at ? d(new Date(new Date(p.docs_verified_at).getTime() + 15 * 864e5).toISOString()) : null;
 
 const itemRows = items.length ? items.map((i, k) => `<tr><td>${k + 1}</td><td>${esc(i.description || i.make_model)}</td><td>${esc(i.plate_no)}</td><td>${esc(i.chassis_vin)}</td><td>${esc(i.year)}</td><td>${esc(i.use_category || i.location)}</td><td class="n">${Number(i.sum_insured) ? m(i.sum_insured) : ""}</td><td class="n">${m(i.premium)}</td></tr>`).join("")
@@ -117,6 +118,7 @@ out.innerHTML = `<div class="page">
     <tr class="tot"><td>Total due</td><td class="n">${m(total)}</td></tr>
     <tr><td>Paid</td><td class="n">${m(paid)}</td></tr>
     <tr class="tot"><td>Balance</td><td class="n">${m(total - paid)}</td></tr>
+    ${approved && p.status !== "active" && p.pay_by ? `<tr><td colspan="2" style="color:#B3261E;font-weight:700">Pay by ${d(p.pay_by)}. Cover starts only when the premium is received. If it is not paid by this date, this approval lapses.</td></tr>` : ""}
   </tbody></table>
 
   ${rule ? `<h2>Cover, limits and deductible</h2>

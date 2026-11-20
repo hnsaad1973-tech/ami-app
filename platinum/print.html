@@ -63,6 +63,10 @@ const j = await r.json();
 if (!r.ok || j.error) { out.textContent = j.error || "Could not load policy"; throw 0; }
 
 const { p, items, receipts, company, tpl, rule, wording, endorsements, signed } = j;
+// sticker and Brown Card numbers per vehicle (same order as the schedule); not shown if this user cannot see the register
+let CN = [];
+try { const rc = await fetch(SB_URL + "/functions/v1/platkyc", { method: "POST", headers: { "Content-Type": "application/json", Authorization: "Bearer " + session.access_token, apikey: SB_KEY }, body: JSON.stringify({ action: "cert_policy", policy_no: p.policy_no }) });
+  const jc = await rc.json(); if (rc.ok && jc.items) CN = jc.items; } catch (_) {}
 const co = company || {};
 const paid = receipts.reduce((s, x) => s + Number(x.amount), 0);
 const total = Number(p.gross_premium) + Number(p.tax || 0) + Number(p.policy_fee || 0);
@@ -78,7 +82,7 @@ const claimsFrom = p.docs_verified_at ? d(new Date(new Date(p.docs_verified_at).
 const itemRows = items.length ? items.map((i, k) => `<tr><td>${k + 1}</td><td>${esc(i.description || i.make_model)}</td><td>${esc(i.plate_no)}</td><td>${esc(i.chassis_vin)}</td><td>${esc(i.year)}</td><td>${esc(i.use_category || i.location)}</td><td class="n">${Number(i.sum_insured) ? m(i.sum_insured) : ""}</td><td class="n">${m(i.premium)}</td></tr>`).join("")
   : `<tr><td colspan="8">As per schedule held by the company${p.source && p.source.startsWith("Opening") ? " (" + esc(p.source) + ")" : ""}</td></tr>`;
 
-const certs = isMotorTPL && approved ? (items.length ? items : [{}]).map((i) => `
+const certs = isMotorTPL && approved ? (items.length ? items : [{}]).map((i, k) => `
   <div class="cert">
     <div class="t">CERTIFICATE OF MOTOR INSURANCE — THIRD PARTY LIABILITY</div>
     <div class="kv">
@@ -86,6 +90,7 @@ const certs = isMotorTPL && approved ? (items.length ? items : [{}]).map((i) => 
       <div><b>Vehicle</b>${esc(i.make_model || i.description)}</div><div><b>Plate no.</b>${esc(i.plate_no)}</div>
       <div><b>Chassis / VIN</b>${esc(i.chassis_vin)}</div><div><b>Use</b>${esc(i.use_category)}</div>
       <div><b>Valid from</b>${d(p.start_date)}</div><div><b>Valid to</b>${d(p.end_date)}</div>
+      <div><b>Sticker no.</b>${esc((CN[k] || {}).sticker || "")}</div><div><b>ECOWAS Brown Card no.</b>${esc((CN[k] || {}).brown_card || "")}</div>
     </div>
     <p class="cond" style="margin:8px 0 0">Limits of liability (statutory): death or bodily injury USD ${m(tpl?.death_injury_per_person || 10000)} per person, USD ${m(tpl?.death_injury_two_or_more || 20000)} for two or more persons; third-party property damage USD ${m(tpl?.property_damage || 5000)}.
     This certificate is valid only when the premium has been paid (CBL Regulation INS/008/2016 — No Premium, No Cover).</p>

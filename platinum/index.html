@@ -215,13 +215,13 @@ const SECTIONS = {
   sales: { name: "Sales", desc: "Enter policy requests for underwriting, issue approved policies to clients, follow up payment, renewals.", roles: ["sales", "underwriter", "gm", "admin"],
     tabs: { s_new: "New policy request", s_mine: "My policies", s_clients: "Client contact info", s_kyc: "KYC", s_guide: "Product guide" } },
   uw: { name: "Underwriting", desc: "Approve referred risks, check documents, product rules, claims and treaty.", roles: ["underwriter", "gm", "admin"],
-    tabs: { u_queue: "Review queue", u_files: "Client files", s_kyc: "KYC checks", u_all: "All policies", u_endorse: "Client clauses", u_word: "Standard wordings", u_rules: "Product rules", u_lib: "Policy library", u_claims: "Claims", u_treaty: "Africa Re" } },
+    tabs: { u_queue: "Review queue", u_files: "Client files", u_certs: "Stickers & Brown Cards", s_kyc: "KYC checks", u_all: "All policies", u_endorse: "Client clauses", u_word: "Standard wordings", u_rules: "Product rules", u_lib: "Policy library", u_claims: "Claims", u_treaty: "Africa Re" } },
   acct: { name: "Accounting", desc: "Receipts, debtors, commissions, payroll, month end, reports and compliance.", roles: ["accountant", "gm", "admin"],
     tabs: { a_receipts: "Receipts", a_claims: "Claim payments", a_debtors: "Debtors", a_comm: "Commissions", a_payroll: "Payroll", a_reports: "Reports", a_close: "Month end", g_cbl: "CBL quarterly", g_are: "Africa Re quarterly", a_comp: "Compliance" } },
   gm: { name: "General Manager", desc: "Company overview, alerts, final approval of every policy, CBL and Africa Re quarterly reports, compliance, board report.", roles: ["gm", "admin"],
-    tabs: { g_over: "Overview", g_alerts: "Alerts", g_appr: "Final approvals", g_claims: "Claim approvals", s_clients: "All client contacts", s_kyc: "KYC", u_files: "Client files", g_cbl: "CBL quarterly", g_are: "Africa Re quarterly", a_comp: "Compliance", b_report: "Board report" } },
+    tabs: { g_over: "Overview", g_alerts: "Alerts", g_appr: "Final approvals", g_claims: "Claim approvals", s_clients: "All client contacts", s_kyc: "KYC", u_files: "Client files", u_certs: "Stickers & Brown Cards", g_cbl: "CBL quarterly", g_are: "Africa Re quarterly", a_comp: "Compliance", b_report: "Board report" } },
   ceo: { name: "CEO", desc: "Full access: overview, team and access, sign-off of product rules, audit trail.", roles: ["admin"],
-    tabs: { g_over: "Overview", s_clients: "All client contacts", s_kyc: "KYC", u_files: "Client files", c_team: "Team & access", c_rules: "Sign off rules", c_word: "Sign off wordings", c_audit: "Audit trail", g_alerts: "Alerts" } },
+    tabs: { g_over: "Overview", s_clients: "All client contacts", s_kyc: "KYC", u_files: "Client files", u_certs: "Stickers & Brown Cards", c_team: "Team & access", c_rules: "Sign off rules", c_word: "Sign off wordings", c_audit: "Audit trail", g_alerts: "Alerts" } },
   board: { name: "Board", desc: "Monthly board report and risks above management limits for approval.", roles: ["board", "admin"],
     tabs: { b_report: "Monthly report", b_approvals: "Above-limit approvals", b_kyc: "KYC summary", u_files: "Client files", c_audit: "Audit trail", a_comp: "Compliance" } },
 };
@@ -400,6 +400,44 @@ const VIEWS = {
     if ($("ri_all")) $("ri_all").onclick = run(async () => {
       if (!confirm("Generate new Platinum policies for ALL old policies (opening book and register)? Old numbers are kept for reference; premiums and accounts do not change.")) return;
       const x = await kapi({ action: "pol_reissue", all: true }); say(`${x.done.length} new policies generated`); VIEWS.u_files(); });
+  },
+  async u_certs() {
+    const { rows, sum } = await kapi({ action: "cert_list" }); LAST = rows;
+    const KN = { sticker: "Sticker", brown_card: "Brown Card" };
+    V().innerHTML = kpis([["Stickers in stock", sum.stickers_in_stock, sum.stickers_in_stock < 20], ["Stickers used", sum.stickers_used], ["Brown Cards in stock", sum.brown_in_stock], ["Brown Cards used", sum.brown_used], ["Void / lost", sum.void_lost, sum.void_lost > 0], ["Vehicles without sticker", sum.vehicles_without_sticker, sum.vehicles_without_sticker > 0]]) +
+      `<div class="card"><h2>Give stickers and Brown Cards to a policy</h2><p class="note">Enter the policy number (new or old). Each vehicle gets its own sticker and, if it travels to ECOWAS countries, a Brown Card. Leave the number empty to take the next one in stock.</p>
+        <div class="row"><input id="ca_pol" placeholder="Policy number" style="max-width:260px"><button class="btn" id="ca_go">Open policy</button></div><div id="ca_box"></div></div>
+      <div class="card"><h2>Add stock received</h2><p class="note">Upload the numbers bought from the Ministry of Transport (stickers) or the Brown Card bureau. Give a range (first and last number) or paste a list.</p>
+        <div class="grid"><label>Type<select id="cs_kind"><option value="sticker">Insurance sticker (Ministry of Transport)</option><option value="brown_card">ECOWAS Brown Card</option></select></label>
+          <label>First number<input id="cs_from" placeholder="e.g. MOT-000101"></label><label>Last number<input id="cs_to" placeholder="e.g. MOT-000600"></label>
+          <label>Batch / receipt no.<input id="cs_batch"></label><label>Date received<input id="cs_date" type="date" value="${today()}"></label><label>Cost each (USD)<input id="cs_cost" type="number" step="0.01"></label>
+          <label style="grid-column:1/-1">Or paste numbers (one per line or separated by commas)<textarea id="cs_list" rows="3"></textarea></label></div>
+        <button class="btn" id="cs_go">Add to stock</button></div>
+      <div class="card"><div class="row" style="justify-content:space-between"><h2>Register</h2>${csvBtn("stickers")}</div>
+        <div class="row"><select id="cr_k"><option value="">All types</option><option value="sticker">Stickers</option><option value="brown_card">Brown Cards</option></select>
+        <select id="cr_s"><option value="">All statuses</option><option value="in_stock">In stock</option><option value="allocated">Allocated</option><option value="void">Void</option><option value="lost">Lost</option></select>
+        <input id="cr_q" placeholder="Search number, policy or client" style="max-width:260px"></div><div class="tablewrap" id="t"></div></div>`;
+    const draw = () => { const k = $("cr_k").value, st = $("cr_s").value, q = $("cr_q").value.toLowerCase();
+      table("t", rows.filter((r) => (!k || r.kind === k) && (!st || r.status === st) && (!q || [r.serial, r.policy_no, r.client].some((x) => String(x || "").toLowerCase().includes(q)))).map((r) => ({ ...r, kind: KN[r.kind], status: String(r.status).replace("_", " ") })).slice(0, 500),
+        { hide: ["id"], extra: (r) => r.status === "void" || r.status === "lost" ? "" : `<button class="btn ghost sm" data-cv="${r.id}">Void / lost</button>` });
+      document.querySelectorAll("[data-cv]").forEach((b) => (b.onclick = run(async () => { const reason = prompt("Reason (spoilt, lost, returned, wrong vehicle…). Start with LOST if it is lost:"); if (!reason) return;
+        await kapi({ action: "cert_void", k: { id: +b.dataset.cv, reason, lost: /^lost/i.test(reason) } }); say("Updated"); VIEWS.u_certs(); }))); };
+    ["cr_k", "cr_s"].forEach((i) => ($(i).onchange = draw)); $("cr_q").oninput = draw; draw(); bindCsv();
+    $("cs_go").onclick = run(async () => { const r = await kapi({ action: "cert_add", c: { kind: $("cs_kind").value, from: $("cs_from").value, to: $("cs_to").value, list: $("cs_list").value, batch: $("cs_batch").value, received_on: $("cs_date").value, unit_cost: $("cs_cost").value } });
+      say(`${r.added} added to stock${r.skipped ? " · " + r.skipped + " already in the register (skipped)" : ""}`); VIEWS.u_certs(); });
+    const openPol = async () => {
+      const { policy: p, items, next } = await kapi({ action: "cert_policy", policy_no: $("ca_pol").value });
+      const nx = (k) => (next.find((x) => x.kind === k) || {}).serial || "none in stock";
+      $("ca_box").innerHTML = `<p class="note"><b>${esc(p.policy_no)}</b>${p.old_policy_no ? " (was " + esc(p.old_policy_no) + ")" : ""} · ${esc(p.client || "")} · ${items.length} vehicle(s) · next sticker ${esc(nx("sticker"))} · next Brown Card ${esc(nx("brown_card"))}</p><div class="tablewrap" id="ca_t"></div>`;
+      table("ca_t", items, { hide: ["item_id"], extra: (r) => `<input data-pl="${r.item_id}" placeholder="Plate no." value="${esc(r.plate_no || "")}" style="width:110px"> ` +
+        (r.sticker ? "" : `<input data-sn="${r.item_id}" placeholder="Sticker no. (blank = next)" style="width:170px"> <button class="btn sm" data-gs="${r.item_id}">Give sticker</button> `) +
+        (r.brown_card ? "" : `<input data-bn="${r.item_id}" placeholder="Brown Card no. (blank = next)" style="width:190px"> <button class="btn ghost sm" data-gb="${r.item_id}">Give Brown Card</button>`) });
+      const give = (kind, id, numEl) => run(async () => { const x = await kapi({ action: "cert_allocate", k: { kind, item_id: id, serial: numEl ? numEl.value : "", plate_no: (document.querySelector(`[data-pl="${id}"]`) || {}).value } });
+        say(`${kind === "sticker" ? "Sticker" : "Brown Card"} ${x.serial} given`); openPol(); });
+      document.querySelectorAll("[data-gs]").forEach((b) => (b.onclick = give("sticker", +b.dataset.gs, document.querySelector(`[data-sn="${b.dataset.gs}"]`))));
+      document.querySelectorAll("[data-gb]").forEach((b) => (b.onclick = give("brown_card", +b.dataset.gb, document.querySelector(`[data-bn="${b.dataset.gb}"]`))));
+    };
+    $("ca_go").onclick = run(openPol); $("ca_pol").addEventListener("keydown", (e) => { if (e.key === "Enter") $("ca_go").click(); });
   },
   // ===== KYC (v3.5) =====
   async s_kyc() {

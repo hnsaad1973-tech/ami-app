@@ -166,15 +166,15 @@ function bindCsv() {
 // ---------- sections by position ----------
 const SECTIONS = {
   sales: { name: "Sales", desc: "Enter policy requests for underwriting, issue approved policies to clients, take payment, renewals.", roles: ["sales", "underwriter", "gm", "admin"],
-    tabs: { s_new: "New policy request", s_mine: "My policies", s_clients: "Clients", s_guide: "Product guide" } },
+    tabs: { s_new: "New policy request", s_mine: "My policies", s_clients: "Client contact info", s_guide: "Product guide" } },
   uw: { name: "Underwriting", desc: "Approve referred risks, check documents, product rules, claims and treaty.", roles: ["underwriter", "gm", "admin"],
     tabs: { u_queue: "Review queue", u_all: "All policies", u_endorse: "Client clauses", u_word: "Standard wordings", u_rules: "Product rules", u_lib: "Policy library", u_claims: "Claims", u_treaty: "Africa Re" } },
   acct: { name: "Accounting", desc: "Receipts, debtors, commissions, payroll, month end, reports and compliance.", roles: ["accountant", "gm", "admin"],
     tabs: { a_receipts: "Receipts", a_debtors: "Debtors", a_comm: "Commissions", a_payroll: "Payroll", a_reports: "Reports", a_close: "Month end", g_cbl: "CBL quarterly", g_are: "Africa Re quarterly", a_comp: "Compliance" } },
   gm: { name: "General Manager", desc: "Company overview, alerts, final approval of every policy, CBL and Africa Re quarterly reports, compliance, board report.", roles: ["gm", "admin"],
-    tabs: { g_over: "Overview", g_alerts: "Alerts", g_appr: "Final approvals", g_cbl: "CBL quarterly", g_are: "Africa Re quarterly", a_comp: "Compliance", b_report: "Board report" } },
+    tabs: { g_over: "Overview", g_alerts: "Alerts", g_appr: "Final approvals", s_clients: "All client contacts", g_cbl: "CBL quarterly", g_are: "Africa Re quarterly", a_comp: "Compliance", b_report: "Board report" } },
   ceo: { name: "CEO", desc: "Full access: overview, team and access, sign-off of product rules, audit trail.", roles: ["admin"],
-    tabs: { g_over: "Overview", c_team: "Team & access", c_rules: "Sign off rules", c_word: "Sign off wordings", c_audit: "Audit trail", g_alerts: "Alerts" } },
+    tabs: { g_over: "Overview", s_clients: "All client contacts", c_team: "Team & access", c_rules: "Sign off rules", c_word: "Sign off wordings", c_audit: "Audit trail", g_alerts: "Alerts" } },
   board: { name: "Board", desc: "Monthly board report and risks above management limits for approval.", roles: ["board", "admin"],
     tabs: { b_report: "Monthly report", b_approvals: "Above-limit approvals", a_comp: "Compliance" } },
 };
@@ -254,7 +254,7 @@ const VIEWS = {
       </div>
     </div>`;
     if (["underwriter", "gm", "admin"].includes(ME.role)) $("n_ovL").classList.remove("hide"); else $("n_docsL").classList.add("hide");
-    list("clients").then((c) => ($("n_cl").innerHTML = c.map((x) => `<option value="${esc(x.name)}">`).join(""))).catch(() => {});
+    api({ action: "my_clients" }).then((c) => ($("n_cl").innerHTML = c.rows.map((x) => `<option value="${esc(x.client)}">`).join(""))).catch(() => {});
     const isTariff = () => ["MTPL", "MFLEET"].includes($("n_class").value);
     const addItem = () => {
       const d = document.createElement("div"); d.className = "grid it"; d.style.cssText = "border-top:1px solid var(--line);padding-top:10px";
@@ -322,7 +322,23 @@ const VIEWS = {
       await api({ action: "resubmit", policy_no: b.dataset.rs, note }); say(b.dataset.rs + " sent back to Underwriting"); VIEWS.s_mine(); })));
     $("r_go").onclick = run(async () => { const r = await api({ action: "add_receipt", r: { policy_no: $("r_pol").value, amount: $("r_amt").value, method: $("r_m").value, ref: $("r_ref").value } }); say(`Payment recorded · ${r.policy.policy_no} ${r.policy.status === "active" ? "is now in force" : "is still part-paid"}`); VIEWS.s_mine(); });
   },
-  async s_clients() { LAST = await list("clients"); V().innerHTML = `<div class="card"><div class="row" style="justify-content:space-between"><h2>Clients</h2>${csvBtn("clients")}</div><div class="tablewrap" id="t"></div></div>`; table("t", LAST, { hide: ["id"] }); bindCsv(); },
+  async s_clients() {
+    if (!["gm", "admin"].includes(ME.role)) {
+      const rows = (await api({ action: "my_clients" })).rows;
+      V().innerHTML = `<div class="card"><h2>Add a client contact</h2><p class="note">Record every client you meet here. It builds Platinum's client records and saves you time on new policies. Once saved, details can only be changed by Underwriting or management.</p>
+        <div class="grid"><label>Client name<input id="cc_n"></label><label>Company<input id="cc_co"></label><label>Phone / WhatsApp<input id="cc_p" inputmode="tel"></label>
+        <label>Email<input id="cc_e" inputmode="email"></label><label>Address<input id="cc_a"></label><label>Notes<input id="cc_no" placeholder="e.g. 3 trucks, renewal in March"></label></div>
+        <button class="btn" id="cc_go">Save contact</button></div>
+        <div class="card"><h2>My client contacts (${rows.length})</h2><p class="note">View only. Your contacts and clients of policies you entered.</p><div class="tablewrap noCopy" id="t"></div></div>`;
+      table("t", rows);
+      const box = $("t"); box.style.userSelect = "none"; box.style.webkitUserSelect = "none";
+      ["copy", "cut", "contextmenu", "selectstart", "dragstart"].forEach((ev) => box.addEventListener(ev, (e) => e.preventDefault()));
+      $("cc_go").onclick = run(async () => {
+        await api({ action: "add_contact", c: { name: $("cc_n").value, company: $("cc_co").value, phone: $("cc_p").value, email: $("cc_e").value, address: $("cc_a").value, notes: $("cc_no").value } });
+        say("Contact saved to Platinum's client records"); VIEWS.s_clients(); });
+      return;
+    }
+    LAST = await list("clients"); V().innerHTML = `<div class="card"><div class="row" style="justify-content:space-between"><h2>All client contacts — consolidated</h2>${csvBtn("clients")}</div><div class="tablewrap" id="t"></div></div>`; table("t", LAST, { hide: ["id"] }); bindCsv(); },
   async s_guide() {
     const r = await list("rules");
     V().innerHTML = `<div class="card"><h2>Product guide</h2><p class="note">What each product covers: limits, deductibles, documents and when it must be referred.</p><div class="tablewrap" id="t"></div></div>`;

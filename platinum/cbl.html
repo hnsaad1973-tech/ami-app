@@ -51,7 +51,7 @@ const qd = new URLSearchParams(location.search).get("q") || new Date(Date.now() 
 const { data: { session } } = await sb.auth.getSession();
 if (!session) { out.innerHTML = 'Please sign in on the <a href="./">Platinum</a> page first.'; throw 0; }
 const QE = await import("./qedit.js?v=1"); if (!(await QE.gate(SB_URL, SB_KEY, session, out))) throw 0;
-const r = await fetch(SB_URL + "/functions/v1/plat", { method: "POST", headers: { "Content-Type": "application/json", Authorization: "Bearer " + session.access_token, apikey: SB_KEY }, body: JSON.stringify({ action: "cbl_report", date: qd }) });
+const r = await fetch(SB_URL + "/functions/v1/platbooks", { method: "POST", headers: { "Content-Type": "application/json", Authorization: "Bearer " + session.access_token, apikey: SB_KEY }, body: JSON.stringify({ action: "cbl_report", date: qd }) });
 const j = await r.json();
 if (!r.ok || j.error) { out.textContent = j.error || "Could not load the report"; throw 0; }
 const R = j.report, CO = R.company || {};

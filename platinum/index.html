@@ -203,6 +203,27 @@ async function agentForm(id, edit) {
   }
   box.scrollIntoView({ behavior: "smooth" });
 }
+
+// ----- give a client's policies to an agent / broker (v4.4) -----
+async function clientAgents() {
+  try { const x = await gapi({ action: "agent_policies" }); const m = {};
+    x.rows.forEach((r) => { const k = String(r.client || "").toUpperCase(); (m[k] = m[k] || new Set()).add(r.agent ? r.agent_code + " · " + r.agent : "Direct"); });
+    return (name) => [...(m[String(name || "").toUpperCase()] || [])].join(", "); } catch (_) { return () => ""; }
+}
+async function agentPick(partyId, client, after) {
+  const { rows } = await gapi({ action: "agent_list" });
+  let d = $("agpick"); if (!d) { d = document.createElement("div"); d.id = "agpick"; document.body.appendChild(d); }
+  d.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:999;display:flex;align-items:center;justify-content:center;padding:16px";
+  d.innerHTML = `<div class="card" style="max-width:460px;width:100%;margin:0"><h2>Give to agent / broker</h2><p class="note"><b>${esc(client)}</b> — all this client's policies go under the agent you choose and their commission goes to the agent's account. The client stays in the client list as before.</p>
+    <div class="grid"><label style="grid-column:1/-1">Agent / broker<select id="ap_ag"><option value="">No agent (direct)</option>${rows.filter((r) => r.status === "active").map((r) => `<option value="${r.id}">${esc(r.code + " · " + r.name)} (${r.comm_pct}%)</option>`).join("")}</select></label>
+    <label style="grid-column:1/-1">Commission % (optional)<input id="ap_pct" type="number" step="0.01" placeholder="agent's own rate"></label></div>
+    <div class="row"><button class="btn" id="ap_go">Give to agent</button><button class="btn ghost" id="ap_x">Cancel</button></div></div>`;
+  $("ap_x").onclick = () => d.remove(); d.onclick = (e) => { if (e.target === d) d.remove(); };
+  $("ap_go").onclick = run(async () => {
+    const a = $("ap_ag"); const who = a.value ? a.options[a.selectedIndex].text : "no agent (direct)";
+    const x = await gapi({ action: "agent_assign", k: { agent_id: a.value || null, comm_pct: $("ap_pct").value, party_id: partyId } });
+    d.remove(); say(`${client}: ${x.count} polic${x.count === 1 ? "y" : "ies"} given to ${who} at ${x.rate}%`); if (after) after(); });
+}
 async function kapi(body) {
   const { data: { session } } = await sb.auth.getSession();
   if (!session) { showLogin(); throw new Error("Please sign in"); }
@@ -452,7 +473,10 @@ const VIEWS = {
         say("Contact saved to Platinum's client records"); VIEWS.s_clients(); });
       return;
     }
-    LAST = await list("clients"); V().innerHTML = `<div class="card"><div class="row" style="justify-content:space-between"><h2>All client contacts — consolidated</h2>${csvBtn("clients")}</div><div class="tablewrap" id="t"></div></div>`; table("t", LAST, { hide: ["id"] }); bindCsv(); },
+    LAST = await list("clients"); const agOf = await clientAgents();
+    V().innerHTML = `<div class="card"><div class="row" style="justify-content:space-between"><h2>All client contacts — consolidated</h2>${csvBtn("clients")}</div><p class="note">Tap <b>Agent</b> on a client to put all their policies under an agent or broker.</p><div class="tablewrap" id="t"></div></div>`;
+    table("t", LAST.map((r) => ({ name: r.name, agent: agOf(r.name), ...r })), { hide: ["id"], extra: (r) => r.policies > 0 ? `<button class="btn ghost sm" data-ap="${r.id}" data-apn="${esc(r.name)}">Agent</button>` : "" }); bindCsv();
+    document.querySelectorAll("[data-ap]").forEach((b) => (b.onclick = run(() => agentPick(+b.dataset.ap, b.dataset.apn, () => VIEWS.s_clients())))); },
   async u_files() {
     const rows = (await kapi({ action: "uw_files" })).rows; LAST = rows;
     const board = ME.role === "board";
@@ -462,7 +486,9 @@ const VIEWS = {
       (board ? "" : `<div class="card"><div class="row" style="justify-content:space-between"><div><h2>Replace old policies</h2><p class="note">Generate new Platinum policies (new number, Platinum wording, printable) for every old policy from the opening book and the register. Old numbers are kept for reference. Premiums and accounts do not change.</p></div><button class="btn" id="ri_all">Replace all old policies</button></div></div>`) +
       `<div class="card"><h2>Client underwriting files</h2><p class="note">${board ? "One file per client: covers, vehicles and premium. Underwriting signs each file." : "One file per client, built from the book: covers, vehicles, premium, unpaid balance, claims, fleet terms, deductibles and special terms. Check it, adjust the terms, then sign. Open a file to edit."}</p><div class="tablewrap" id="t"></div></div><div id="uf"></div>`;
     table("t", board ? rows : rows.map((r) => ({ client: r.client, kyc: r.kyc, covers: r.covers, policies: r.policies, vehicles: r.vehicles, total_premium: r.total_premium, outstanding: r.outstanding, claims: r.claims, next_renewal: r.next_renewal, status: r.status === "proposed" ? "To sign" : r.status, party_id: r.party_id })),
-      { hide: ["party_id"], extra: board ? null : (r) => `<button class="btn sm ${r.status === "To sign" ? "" : "ghost"}" data-uf="${r.party_id}">Open / edit</button>` });
+      { hide: ["party_id"], extra: board ? null : (r) => `<button class="btn sm ${r.status === "To sign" ? "" : "ghost"}" data-uf="${r.party_id}">Open / edit</button> <button class="btn ghost sm" data-ap="${r.party_id}" data-apn="${esc(r.client)}">Agent</button>` });
+    if (!board) { const agOf = await clientAgents(); document.querySelectorAll("#t tbody tr").forEach((tr, i) => { const td = tr.children[0]; const a = agOf(rows[i] && rows[i].client); if (td && a) td.innerHTML += `<br><span class="note">${esc(a)}</span>`; });
+      document.querySelectorAll("[data-ap]").forEach((b) => (b.onclick = run(() => agentPick(+b.dataset.ap, b.dataset.apn, () => VIEWS.u_files())))); }
     document.querySelectorAll("[data-uf]").forEach((b) => (b.onclick = run(() => clientFile(+b.dataset.uf))));
     if ($("ri_all")) $("ri_all").onclick = run(async () => {
       if (!confirm("Generate new Platinum policies for ALL old policies (opening book and register)? Old numbers are kept for reference; premiums and accounts do not change.")) return;

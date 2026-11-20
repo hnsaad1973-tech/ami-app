@@ -84,6 +84,7 @@
   .pill{display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700}
   .pill.p{background:#3B2E10;color:var(--gold)}.pill.a{background:#173B2A;color:var(--green)}
   details summary{cursor:pointer;font-weight:700;color:var(--gold)}
+.tsearch{position:sticky;left:0;padding:8px 8px 6px}.tsearch input{width:100%;max-width:420px}
 </style>
 </head>
 <body>
@@ -237,8 +238,16 @@ function table(box, rows, opts = {}) {
       return `<td${LONG.test(c) ? ' class="wrap"' : ""}>${esc(/date|_at$|due/.test(c) ? s.slice(0, 10) : s)}</td>`;
     }).join("") + (opts.extra ? `<td>${opts.extra(r)}</td>` : "") + "</tr>";
   }
-  box.innerHTML = h + "</tbody></table>";
+  box.innerHTML = (opts.nosearch || rows.length < 2 ? "" : `<div class="tsearch"><input type="search" placeholder="🔍 Search this list…" data-ts></div>`) + h + "</tbody></table>";
+  const inp = box.querySelector("[data-ts]");
+  if (inp) {
+    const key = box.id || ""; const go = () => { const q = inp.value.trim().toLowerCase(); TSQ[key] = inp.value; let n = 0;
+      box.querySelectorAll("tbody tr").forEach((tr) => { const ok = !q || q.split(/\s+/).every((w) => tr.textContent.toLowerCase().includes(w)); tr.style.display = ok ? "" : "none"; if (ok) n++; });
+      inp.title = n + " shown"; };
+    inp.oninput = go; if (TSQ[key]) { inp.value = TSQ[key]; go(); }
+  }
 }
+const TSQ = {};
 const kpis = (arr) => `<div class="kpis">${arr.map(([l, v, red]) => `<div class="kpi${red ? " red" : ""}"><div class="l">${l}</div><div class="v">${v}</div></div>`).join("")}</div>`;
 const STAGE = { submitted: "With Underwriting", referred: "Awaiting facultative", returned: "Returned to Sales", uw_approved: "With GM (final approval)", board: "With Board", approved: "Approved", declined: "Declined" };
 const stage = (r) => r.lapsed_at ? "Lapsed — not paid in time" : r.uw_status === "approved" ? (r.status === "active" ? "Paid · in force" : (r.issued_to_client_at ? "Issued · " : "Approved · issue now · ") + (r.pay_by ? "pay by " + String(r.pay_by).slice(0, 10) : "waiting for payment")) : STAGE[r.uw_status] || r.uw_status;

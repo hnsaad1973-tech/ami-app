@@ -22,6 +22,30 @@
   .tabs{display:flex;gap:6px;padding:0 0 12px;overflow-x:auto}
   .tab{flex-shrink:0;min-height:38px;padding:0 13px;border-radius:999px;border:1px solid var(--edge);background:transparent;color:var(--soft);font-size:13px;font-weight:600;cursor:pointer}
   .tab[aria-pressed="true"]{background:var(--gold);border-color:var(--gold);color:var(--navy)}
+  body.out header{display:none}
+  .signin{min-height:calc(100vh - 40px);display:grid;grid-template-columns:1fr 1fr;gap:0;max-width:980px;width:100%;margin:10px auto;border:1px solid var(--edge);border-radius:22px;overflow:hidden;box-shadow:0 30px 80px rgba(0,0,0,.45)}
+  .signin.hide{display:none}
+  .si-brand{overflow:hidden;background:radial-gradient(120% 90% at 0% 0%,#1d3a66 0%,#0B1B33 60%);padding:48px 40px;display:flex;flex-direction:column;justify-content:center;gap:6px;position:relative}
+  .si-brand:after{content:"";position:absolute;inset:auto -60px -60px auto;width:220px;height:220px;border-radius:50%;border:1px solid rgba(212,168,75,.25)}
+  .si-crest{width:64px;height:64px;border-radius:16px;border:2px solid var(--gold);display:grid;place-items:center;font-family:'Space Grotesk',sans-serif;font-size:34px;font-weight:700;color:var(--gold);margin-bottom:18px}
+  .si-name{font-family:'Space Grotesk',sans-serif;font-size:38px;font-weight:700;letter-spacing:8px;color:var(--gold)}
+  .si-tag{color:var(--soft);font-size:14px;letter-spacing:1px}
+  .si-rule{width:56px;height:2px;background:var(--gold);margin:22px 0 10px}
+  .si-line{color:var(--muted);font-size:13px;letter-spacing:3px;text-transform:uppercase;margin:0}
+  .si-card{background:#0f2342;padding:48px 40px;display:flex;flex-direction:column;justify-content:center;gap:14px}
+  .si-card>div{display:flex;flex-direction:column;gap:14px}
+  .si-card>div.hide{display:none}
+  .si-h{font-family:'Space Grotesk',sans-serif;font-size:28px;margin:0}
+  .si-p{color:var(--soft);font-size:14px;line-height:1.55;margin:0}
+  .si-l{display:flex;flex-direction:column;gap:8px;font-size:12px;color:var(--muted);letter-spacing:1px;text-transform:uppercase}
+  .si-l input,.si-code{background:#0B1B33;border:1px solid var(--edge);border-radius:12px;color:var(--text);font-size:16px;padding:15px 16px;outline:none;transition:border-color .2s}
+  .si-l input:focus,.si-code:focus{border-color:var(--gold)}
+  .si-code{font-size:28px;letter-spacing:12px;text-align:center;font-family:'Space Grotesk',sans-serif}
+  .si-btn{background:linear-gradient(180deg,#e2bb62,#c99a3c);color:#0B1B33;border:0;border-radius:12px;font-weight:700;font-size:15px;padding:15px;cursor:pointer;letter-spacing:.5px}
+  .si-btn:hover{filter:brightness(1.06)}
+  .si-link{background:none;border:0;color:var(--gold);font-size:13px;cursor:pointer;text-decoration:underline;align-self:flex-start;padding:0}
+  .si-foot{color:var(--muted);font-size:11px;letter-spacing:1px;margin-top:10px}
+  @media(max-width:760px){.signin{grid-template-columns:1fr;min-height:auto;border-radius:18px;margin:0}.si-brand{padding:34px 26px 26px}.si-name{font-size:30px;letter-spacing:6px}.si-card{padding:28px 26px 34px}.si-crest{width:52px;height:52px;font-size:28px;margin-bottom:12px}}
   main{padding:14px;max-width:1150px;margin:0 auto;display:flex;flex-direction:column;gap:14px;padding-bottom:60px}
   #view{display:flex;flex-direction:column;gap:14px}
   h2{font-family:'Space Grotesk',Inter,sans-serif;font-size:19px;margin:0}
@@ -74,14 +98,29 @@
 <main>
   <div id="msg" class="msg"></div>
 
-  <section id="login" class="card hide" style="max-width:440px;margin:30px auto;width:100%">
-    <h2>Sign in</h2>
-    <p class="note">Platinum Insurers staff only. Enter your work email; we send you a sign-in code.</p>
-    <label>Email<input id="em" type="email" autocomplete="email"></label>
-    <button class="btn" id="sendcode">Send code</button>
-    <div id="codebox" class="hide" style="display:flex;flex-direction:column;gap:10px">
-      <label>Code<input id="code" inputmode="numeric" autocomplete="one-time-code" maxlength="10"></label>
-      <button class="btn" id="verify">Sign in</button>
+  <section id="login" class="signin hide">
+    <div class="si-brand">
+      <div class="si-crest">P</div>
+      <div class="si-name">PLATINUM</div>
+      <div class="si-tag">Insurers, Inc. · Monrovia, Liberia</div>
+      <div class="si-rule"></div>
+      <p class="si-line">Operations Platform</p>
+    </div>
+    <div class="si-card">
+      <div id="si1">
+        <h2 class="si-h">Welcome</h2>
+        <p class="si-p">Sign in with the email Platinum assigned to you. You will go straight to your own workspace.</p>
+        <label class="si-l">Work email<input id="em" type="email" autocomplete="email" placeholder="Your work email"></label>
+        <button class="si-btn" id="sendcode">Send sign-in code</button>
+      </div>
+      <div id="codebox" class="hide">
+        <h2 class="si-h">Check your email</h2>
+        <p class="si-p">We sent a code to <b id="si_to"></b>. Enter it below.</p>
+        <input id="code" class="si-code" inputmode="numeric" autocomplete="one-time-code" maxlength="10" placeholder="••••••">
+        <button class="si-btn" id="verify">Sign in</button>
+        <button class="si-link" id="si_back">Use a different email</button>
+      </div>
+      <p class="si-foot">Staff access only · every action is recorded</p>
     </div>
   </section>
 
@@ -165,21 +204,21 @@ function bindCsv() {
 
 // ---------- sections by position ----------
 const SECTIONS = {
-  sales: { name: "Sales", desc: "Enter policy requests for underwriting, issue approved policies to clients, take payment, renewals.", roles: ["sales", "underwriter", "gm", "admin"],
+  sales: { name: "Sales", desc: "Enter policy requests for underwriting, issue approved policies to clients, follow up payment, renewals.", roles: ["sales", "underwriter", "gm", "admin"],
     tabs: { s_new: "New policy request", s_mine: "My policies", s_clients: "Client contact info", s_guide: "Product guide" } },
   uw: { name: "Underwriting", desc: "Approve referred risks, check documents, product rules, claims and treaty.", roles: ["underwriter", "gm", "admin"],
     tabs: { u_queue: "Review queue", u_all: "All policies", u_endorse: "Client clauses", u_word: "Standard wordings", u_rules: "Product rules", u_lib: "Policy library", u_claims: "Claims", u_treaty: "Africa Re" } },
   acct: { name: "Accounting", desc: "Receipts, debtors, commissions, payroll, month end, reports and compliance.", roles: ["accountant", "gm", "admin"],
-    tabs: { a_receipts: "Receipts", a_debtors: "Debtors", a_comm: "Commissions", a_payroll: "Payroll", a_reports: "Reports", a_close: "Month end", g_cbl: "CBL quarterly", g_are: "Africa Re quarterly", a_comp: "Compliance" } },
+    tabs: { a_receipts: "Receipts", a_claims: "Claim payments", a_debtors: "Debtors", a_comm: "Commissions", a_payroll: "Payroll", a_reports: "Reports", a_close: "Month end", g_cbl: "CBL quarterly", g_are: "Africa Re quarterly", a_comp: "Compliance" } },
   gm: { name: "General Manager", desc: "Company overview, alerts, final approval of every policy, CBL and Africa Re quarterly reports, compliance, board report.", roles: ["gm", "admin"],
-    tabs: { g_over: "Overview", g_alerts: "Alerts", g_appr: "Final approvals", s_clients: "All client contacts", g_cbl: "CBL quarterly", g_are: "Africa Re quarterly", a_comp: "Compliance", b_report: "Board report" } },
+    tabs: { g_over: "Overview", g_alerts: "Alerts", g_appr: "Final approvals", g_claims: "Claim approvals", s_clients: "All client contacts", g_cbl: "CBL quarterly", g_are: "Africa Re quarterly", a_comp: "Compliance", b_report: "Board report" } },
   ceo: { name: "CEO", desc: "Full access: overview, team and access, sign-off of product rules, audit trail.", roles: ["admin"],
     tabs: { g_over: "Overview", s_clients: "All client contacts", c_team: "Team & access", c_rules: "Sign off rules", c_word: "Sign off wordings", c_audit: "Audit trail", g_alerts: "Alerts" } },
   board: { name: "Board", desc: "Monthly board report and risks above management limits for approval.", roles: ["board", "admin"],
-    tabs: { b_report: "Monthly report", b_approvals: "Above-limit approvals", a_comp: "Compliance" } },
+    tabs: { b_report: "Monthly report", b_approvals: "Above-limit approvals", c_audit: "Audit trail", a_comp: "Compliance" } },
 };
 
-function showLogin() { $("login").classList.remove("hide"); $("chooser").classList.add("hide"); $("tabs").classList.add("hide"); V().innerHTML = ""; }
+function showLogin() { document.body.classList.add("out"); try { const e = localStorage.getItem("plat_email"); if (e && !$("em").value) $("em").value = e; } catch (_) {} $("login").classList.remove("hide"); $("chooser").classList.add("hide"); $("tabs").classList.add("hide"); V().innerHTML = ""; }
 function showChooser() {
   V().innerHTML = ""; $("tabs").classList.add("hide"); $("where").textContent = "Insurers, Inc."; $("homeBtn").classList.add("hide");
   const mine = Object.entries(SECTIONS).filter(([, s]) => s.roles.includes(ME.role));
@@ -210,8 +249,12 @@ $("sendcode").onclick = run(async () => {
   const email = $("em").value.trim(); if (!email) return;
   const { error } = await sb.auth.signInWithOtp({ email, options: { shouldCreateUser: false } });
   if (error) throw new Error(/signup|not allowed|not found/i.test(error.message) ? "This email is not set up. Ask management for access." : error.message);
-  $("codebox").classList.remove("hide"); say("Code sent to " + email);
+  try { localStorage.setItem("plat_email", email); } catch (_) {}
+  $("si_to").textContent = email; $("si1").classList.add("hide"); $("codebox").classList.remove("hide"); $("code").focus();
 });
+$("si_back").onclick = () => { $("codebox").classList.add("hide"); $("si1").classList.remove("hide"); $("em").focus(); };
+$("em").addEventListener("keydown", (e) => { if (e.key === "Enter") $("sendcode").click(); });
+$("code").addEventListener("keydown", (e) => { if (e.key === "Enter") $("verify").click(); });
 $("verify").onclick = run(async () => {
   const { error } = await sb.auth.verifyOtp({ email: $("em").value.trim(), token: $("code").value.trim(), type: "email" });
   if (error) throw new Error(error.message); start();
@@ -296,11 +339,7 @@ const VIEWS = {
     V().innerHTML = `${kpis([["Approved — issue to client", toIssue.length, toIssue.length > 0], ["Returned to you", returned.length, returned.length > 0], ["Waiting for payment", unpaid.length, unpaid.some((r) => r.pay_by && String(r.pay_by).slice(0, 10) <= today())], ["In approval", rows.filter((r) => ["submitted", "referred", "uw_approved", "board"].includes(r.uw_status)).length]])}
       ${toIssue.length ? `<div class="card"><h2>Approved — issue to the client now</h2><p class="note">Final approval is given. Issue the stamped policy and send it to the client for immediate payment. Cover starts only when the premium is paid (CBL No Premium, No Cover). If nothing is paid within 7 days of approval, the policy lapses automatically.</p><div class="tablewrap" id="t_issue"></div></div>` : ""}
       ${returned.length ? `<div class="card"><h2>Returned to you by Underwriting</h2><div class="tablewrap" id="t_ret"></div></div>` : ""}
-      <div class="card"><h2>Take a payment</h2><div class="grid">
-        <label>Policy no.<select id="r_pol">${unpaid.map((r) => `<option value="${esc(r.policy_no)}">${esc(r.policy_no)} — ${esc(r.holder)} (${money(r.balance)})</option>`).join("")}</select></label>
-        <label>Amount (USD)<input id="r_amt" inputmode="decimal"></label>
-        <label>Paid by<select id="r_m"><option value="cash">Cash</option><option value="momo">Mobile money</option><option value="bank">Bank</option><option value="cheque">Cheque</option></select></label>
-        <label>Receipt / reference<input id="r_ref"></label></div><button class="btn" id="r_go">Record payment</button></div>
+      ${unpaid.length ? `<div class="card"><h2>Waiting for payment</h2><p class="note">Only Accounts records payments. Send the client to pay at Accounts, by bank or by mobile money; the policy goes into force as soon as Accounts posts the receipt.</p><div class="tablewrap" id="t_unpaid"></div></div>` : ""}
       ${soon.length ? `<div class="card"><h2>Renewals due in 30 days</h2><div class="tablewrap" id="t_soon"></div></div>` : ""}
       <div class="card"><h2>My policies</h2><div class="tablewrap" id="t_mine"></div></div>`;
     const hide = ["id", "class_code", "created_by", "uw_status", "referred_to", "docs_verified_at", "items", "issued_to_client_at", "status", "lapsed_at"];
@@ -312,6 +351,7 @@ const VIEWS = {
     };
     if (toIssue.length) table("t_issue", toIssue, { hide, extra: (r) => `<span class="row" style="flex-wrap:nowrap"><button class="btn sm" data-iss="${esc(r.policy_no)}">Issue stamped policy</button> ${send(r)}</span>` });
     if (returned.length) table("t_ret", returned.map((r) => ({ policy_no: r.policy_no, holder: r.holder, class_name: r.class_name, gross_premium: r.gross_premium })), { extra: (r) => `<button class="btn sm" data-rs="${esc(r.policy_no)}">Resubmit</button>` });
+    if (unpaid.length) table("t_unpaid", unpaid.map((r) => ({ policy_no: r.policy_no, holder: r.holder, balance: r.balance, pay_by: r.pay_by ? String(r.pay_by).slice(0, 10) : "" })), { extra: (r) => send(rows.find((x) => x.policy_no === r.policy_no)) });
     if (soon.length) table("t_soon", soon, { hide, extra: (r) => printBtn(r.policy_no) });
     table("t_mine", rows, { hide, extra: (r) => r.uw_status === "approved" ? `<span class="row" style="flex-wrap:nowrap">${printBtn(r.policy_no)} ${send(r)}</span>` : "" });
     document.querySelectorAll("[data-iss]").forEach((b) => (b.onclick = run(async () => {
@@ -320,7 +360,6 @@ const VIEWS = {
     document.querySelectorAll("[data-rs]").forEach((b) => (b.onclick = run(async () => {
       const note = prompt("What did you change or add for Underwriting?"); if (note === null) return;
       await api({ action: "resubmit", policy_no: b.dataset.rs, note }); say(b.dataset.rs + " sent back to Underwriting"); VIEWS.s_mine(); })));
-    $("r_go").onclick = run(async () => { const r = await api({ action: "add_receipt", r: { policy_no: $("r_pol").value, amount: $("r_amt").value, method: $("r_m").value, ref: $("r_ref").value } }); say(`Payment recorded · ${r.policy.policy_no} ${r.policy.status === "active" ? "is now in force" : "is still part-paid"}`); VIEWS.s_mine(); });
   },
   async s_clients() {
     if (!["gm", "admin"].includes(ME.role)) {
@@ -418,20 +457,45 @@ const VIEWS = {
     document.querySelectorAll("[data-cl]").forEach((b) => (b.onclick = () => { ENDORSE_FOR = b.dataset.cl; openTab("u_endorse"); })); },
   async u_claims() {
     const cl = await list("claims");
+    const toVerify = cl.filter((c) => c.status === "open" && String(c.stage).startsWith("registered"));
     V().innerHTML = `<div class="card"><h2>New claim</h2><p class="note">Only for losses inside the policy period and from 15 days after documents were checked. The product's deductible applies.</p><div class="grid">
         <label>Policy no.<input id="c_pol"></label><label>Date of loss<input type="date" id="c_loss" value="${today()}"></label><label>First reserve (USD)<input id="c_res" inputmode="decimal"></label></div>
         <label>What happened<textarea id="c_desc"></textarea></label><button class="btn" id="c_go">Open claim</button></div>
       <div class="card"><h2>Update a claim</h2><div class="grid">
         <label>Claim no.<select id="m_clm">${cl.filter((c) => c.status === "open").map((c) => `<option>${esc(c.claim_no)}</option>`).join("")}</select></label>
-        <label>Type<select id="m_kind"><option value="reserve">New reserve (still to pay)</option><option value="payment">Payment (net of deductible)</option><option value="salvage">Salvage / recovery</option></select></label>
+        <label>Type<select id="m_kind"><option value="reserve">New reserve (still to pay)</option><option value="salvage">Salvage / recovery</option></select></label>
         <label>Amount (USD)<input id="m_amt" inputmode="decimal"></label><label>Close<select id="m_close"><option value="">No</option><option value="1">Yes</option></select></label></div>
         <button class="btn" id="m_go">Post</button></div>
+      ${toVerify.length ? `<div class="card"><h2>Claims to verify</h2><p class="note">Check the loss, the documents, the policy period and the deductible, then verify so the GM can approve the amount. You cannot verify a claim on a policy you underwrote — another underwriter or the GM's chosen stand-in must do it. Accounts pays only after GM approval.</p><div class="tablewrap" id="t_v"></div></div>` : ""}
       <div class="card"><h2>Claims</h2><div class="tablewrap" id="t"></div></div>`;
     table("t", cl);
+    if (toVerify.length) table("t_v", toVerify.map((c) => ({ claim_no: c.claim_no, policy_no: c.policy_no, holder: c.holder, loss_date: c.loss_date, description: c.description, outstanding: c.outstanding, underwritten_by: c.underwritten_by })),
+      { extra: (c) => `<span class="row" style="flex-wrap:nowrap"><button class="btn sm" data-cv="${esc(c.claim_no)}">Verify</button> <button class="btn ghost sm" data-cd="${esc(c.claim_no)}">Decline</button></span>` });
+    document.querySelectorAll("[data-cv]").forEach((b) => (b.onclick = run(async () => { const note = prompt("Verification note (documents seen, deductible applied):"); if (note === null) return; await api({ action: "claim_verify", k: { claim_no: b.dataset.cv, note } }); say(b.dataset.cv + " verified — now with the GM"); VIEWS.u_claims(); })));
+    document.querySelectorAll("[data-cd]").forEach((b) => (b.onclick = run(async () => { const note = prompt("Reason for declining the claim:"); if (!note) return; await api({ action: "claim_verify", k: { claim_no: b.dataset.cd, decline: true, note } }); say(b.dataset.cd + " declined"); VIEWS.u_claims(); })));
     $("c_go").onclick = run(async () => { const r = await api({ action: "create_claim", c: { policy_no: $("c_pol").value.trim(), loss_date: $("c_loss").value, description: $("c_desc").value, reserve: $("c_res").value } }); say("Claim " + r.claim.claim_no + " opened"); VIEWS.u_claims(); });
     $("m_go").onclick = run(async () => { await api({ action: "claim_move", m: { claim_no: $("m_clm").value, kind: $("m_kind").value, amount: $("m_amt").value, close: !!$("m_close").value } }); say("Claim updated"); VIEWS.u_claims(); });
   },
   async u_rules() { await rulesView(false); },
+  async g_claims() {
+    const cl = await list("claims"), due = cl.filter((c) => c.status === "open" && String(c.stage).startsWith("verified"));
+    V().innerHTML = `${kpis([["Claims waiting for you", due.length, due.length > 0], ["Approved, not yet paid", cl.filter((c) => c.status === "open" && String(c.stage).startsWith("approved")).length], ["Open claims", cl.filter((c) => c.status === "open").length]])}
+      <div class="card"><h2>Claims verified by Underwriting — approve the amount</h2><p class="note">Approve the amount to be paid (net of the deductible). Accounts can pay up to that amount only. You cannot approve a claim you registered or on a policy you underwrote.</p><div class="tablewrap" id="t_a"></div></div>
+      <div class="card"><h2>All claims</h2><div class="tablewrap" id="t"></div></div>`;
+    table("t_a", due.map((c) => ({ claim_no: c.claim_no, policy_no: c.policy_no, holder: c.holder, loss_date: c.loss_date, description: c.description, reserve: c.outstanding, verified_by: c.verified_by })), { extra: (c) => `<button class="btn sm" data-ga="${esc(c.claim_no)}">Approve amount</button>` });
+    table("t", cl);
+    document.querySelectorAll("[data-ga]").forEach((b) => (b.onclick = run(async () => { const amount = prompt("Amount approved for payment (USD), net of deductible:"); if (!amount) return; await api({ action: "claim_approve", k: { claim_no: b.dataset.ga, amount } }); say(b.dataset.ga + " approved — Accounts will pay"); VIEWS.g_claims(); })));
+  },
+  async a_claims() {
+    const cl = await list("claims"), due = cl.filter((c) => c.status === "open" && String(c.stage).startsWith("approved"));
+    V().innerHTML = `<div class="card"><h2>Approved claims to pay</h2><p class="note">Pay only claims the GM has approved, up to the approved amount. The claim closes when it is paid in full.</p><div class="grid">
+        <label>Claim no.<select id="k_clm">${due.map((c) => `<option value="${esc(c.claim_no)}">${esc(c.claim_no)} — ${esc(c.holder)} (approved ${money(c.approved_amount)}, paid ${money(c.paid)})</option>`).join("")}</select></label>
+        <label>Amount paid (USD)<input id="k_amt" inputmode="decimal"></label><label>Date<input type="date" id="k_date" value="${today()}"></label><label>Cheque / transfer ref.<input id="k_ref"></label></div>
+        <button class="btn" id="k_go"${due.length ? "" : " disabled"}>Record claim payment</button></div>
+      <div class="card"><h2>All claims</h2><div class="tablewrap" id="t"></div></div>`;
+    table("t", cl);
+    $("k_go").onclick = run(async () => { await api({ action: "claim_pay", k: { claim_no: $("k_clm").value, amount: $("k_amt").value, mdate: $("k_date").value, ref: $("k_ref").value } }); say("Claim payment recorded"); VIEWS.a_claims(); });
+  },
   async u_treaty() {
     const [t, x] = await Promise.all([list("treaty"), list("xl")]);
     V().innerHTML = `<div class="card"><h2>Africa Re 2027 — treaty sections</h2><p class="note">Offer terms (14 Nov 2026), not yet bound.</p><div class="tablewrap" id="t1"></div></div><div class="card"><h2>Excess of loss covers</h2><div class="tablewrap" id="t2"></div></div>`;
@@ -676,11 +740,13 @@ async function start() {
     const { data: { session } } = await sb.auth.getSession();
     if (!session) return showLogin();
     ME = (await api({ action: "me" })).me;
-    $("login").classList.add("hide");
+    $("login").classList.add("hide"); document.body.classList.remove("out");
     $("who").innerHTML = `${esc(ME.name || ME.email)}<br>${esc(ME.title || ME.role)} · <a id="out">Sign out</a>`;
     $("out").onclick = async () => { await sb.auth.signOut(); location.reload(); };
-    showChooser();
-  } catch (e) { say(e.message, false); showLogin(); }
+    // Each person lands in their own workspace, by the role Platinum assigned to their email.
+    const HOME = { sales: "sales", underwriter: "uw", accountant: "acct", gm: "gm", admin: "ceo", board: "board" };
+    if (HOME[ME.role] && SECTIONS[HOME[ME.role]]?.roles.includes(ME.role)) openSection(HOME[ME.role]); else showChooser();
+  } catch (e) { say(e.message, false); if (/not on the Platinum list/i.test(e.message)) await sb.auth.signOut(); showLogin(); }
 }
 start();
 </script>

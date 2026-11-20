@@ -32,6 +32,9 @@
   .cond li{margin-bottom:3px}
   .sign{display:flex;justify-content:space-between;margin-top:30px}
   .sign div{width:45%;border-top:1px solid #333;padding-top:4px;font-size:11px}
+  .seal{border:3px double #1F7A3A;color:#1F7A3A;border-radius:10px;padding:8px 12px;display:inline-block;transform:rotate(-3deg);font-size:11px;line-height:1.45;margin-top:14px}
+  .seal b{font-size:15px;letter-spacing:2px;display:block}
+  .void{position:fixed;top:40%;left:0;right:0;text-align:center;font-size:54px;font-weight:700;color:rgba(179,38,30,.16);transform:rotate(-20deg);pointer-events:none;z-index:5}
   .cert{border:2px solid #0B1B33;border-radius:10px;padding:12px;margin-top:16px;page-break-inside:avoid}
   .cert .t{font-weight:700;color:#0B1B33;font-size:14px;margin-bottom:6px}
   .foot{margin-top:18px;font-size:10px;color:#667;text-align:center;border-top:1px solid #CCD3DE;padding-top:6px}
@@ -59,13 +62,14 @@ const r = await fetch(SB_URL + "/functions/v1/plat", { method: "POST", headers: 
 const j = await r.json();
 if (!r.ok || j.error) { out.textContent = j.error || "Could not load policy"; throw 0; }
 
-const { p, items, receipts, company, tpl, rule, wording, endorsements } = j;
+const { p, items, receipts, company, tpl, rule, wording, endorsements, signed } = j;
 const co = company || {};
 const paid = receipts.reduce((s, x) => s + Number(x.amount), 0);
 const total = Number(p.gross_premium) + Number(p.tax || 0) + Number(p.policy_fee || 0);
 const isMotorTPL = ["MTPL", "MTPFT", "MFLEET", "MCOMP", "PLANT"].includes(p.class_code);
 const approved = p.uw_status === "approved";
-const status = !approved ? `<span class="stamp warn">${p.uw_status === "declined" ? "DECLINED" : "AWAITING UNDERWRITING APPROVAL — NOT VALID"}</span>`
+const STG = { submitted: "WITH UNDERWRITING", referred: "WITH UNDERWRITING", returned: "RETURNED TO SALES", uw_approved: "WITH GENERAL MANAGER", board: "WITH THE BOARD" };
+const status = !approved ? `<span class="stamp warn">${p.uw_status === "declined" ? "DECLINED" : (STG[p.uw_status] || "NOT APPROVED") + " — NOT VALID"}</span>`
   : p.status === "active" ? `<span class="stamp ok">PAID — COVER IN FORCE</span>`
   : `<span class="stamp warn">PREMIUM NOT PAID — NO COVER UNTIL PAID</span>`;
 const claimsFrom = p.docs_verified_at ? d(new Date(new Date(p.docs_verified_at).getTime() + 15 * 864e5).toISOString()) : null;
@@ -87,6 +91,7 @@ const certs = isMotorTPL && approved ? (items.length ? items : [{}]).map((i) => 
   </div>`).join("") : "";
 
 out.className = "";
+if (!approved) document.body.insertAdjacentHTML("beforeend", '<div class="void">NOT VALID — NOT APPROVED</div>');
 out.innerHTML = `<div class="page">
   <div class="head">
     <div class="brand">PLATINUM INSURERS, INC.<small>${esc(co.office || "Stop & Shop Building, Randall Street, Monrovia, Liberia")}<br>Tel +231 770 258 520 · +231 775 502 780 · platinuminsurersliberiainc@gmail.com<br>Business Registration No. ${esc(co.business_registration_no || "052537207")} · Licensed by the Central Bank of Liberia</small></div>
@@ -117,9 +122,10 @@ out.innerHTML = `<div class="page">
   ${rule ? `<h2>Cover, limits and deductible</h2>
   <table><tbody>
     <tr><th style="width:28%">Limits</th><td>${esc(rule.limits)}</td></tr>
-    <tr><th>Deductible / excess</th><td>${esc(rule.deductible)}</td></tr>
+    <tr><th>Deductible / excess</th><td>${esc(p.deductible_text || rule.deductible)}</td></tr>
     <tr><th>Main exclusions</th><td>${esc(rule.exclusions)}</td></tr>
     <tr><th>Special conditions</th><td>${esc(rule.conditions)}</td></tr>
+    ${p.uw_conditions ? `<tr><th>Conditions for this policy</th><td style="white-space:pre-wrap">${esc(p.uw_conditions)}</td></tr>` : ""}
   </tbody></table>` : ""}
 
   <h2>Conditions</h2>
@@ -137,10 +143,11 @@ out.innerHTML = `<div class="page">
   ${endorsements.map((e) => `<div style="margin-bottom:8px"><b>Endorsement ${e.endorsement_no}: ${esc(e.title)}</b> <span style="color:#556">(effective ${d(e.effective_date)}${Number(e.additional_premium) ? " · additional premium USD " + m(e.additional_premium) : ""})</span><div class="cond" style="white-space:pre-wrap">${esc(e.body)}</div></div>`).join("")}
   <p class="cond">Endorsements form part of this Policy. Where an Endorsement conflicts with the standard wording, the Endorsement prevails.</p>` : ""}
 
+  ${approved ? `<div class="seal"><b>APPROVED</b>Underwritten: ${esc(signed?.underwriter?.name || p.uw_signed_by || "")}${signed?.underwriter_at ? " · " + d(signed.underwriter_at) : ""}<br>Final approval: ${esc(signed?.gm?.name || p.gm_approved_by || p.approved_by || "")}${signed?.gm?.title ? ", " + esc(signed.gm.title) : ", General Manager"}${signed?.gm_at ? " · " + d(signed.gm_at) : ""}<br>Platinum Insurers, Inc. · Monrovia</div>` : ""}
   <div class="sign"><div>For and on behalf of Platinum Insurers, Inc.</div><div>Insured</div></div>
   ${wording ? `<div style="page-break-before:always"></div><h2>Policy wording — ${esc(wording.title || p.class_name)} (version ${esc(wording.version)})</h2>
   <div class="cond" style="white-space:pre-wrap;font-size:11px;line-height:1.5">${esc(wording.body)}</div>` : ""}
-  <div class="foot">Issued ${d(p.issue_date)} · ${approved && p.approved_by ? "Approved by " + esc(p.approved_by) + " · " : ""}Verify this policy with Platinum Insurers at +231 775 502 780</div>
+  <div class="foot">Issued ${d(p.issue_date)} · Verify this policy with Platinum Insurers at +231 775 502 780</div>
 </div>`;
 document.title = p.policy_no + " — " + (p.holder || "Policy");
 </script>

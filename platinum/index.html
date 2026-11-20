@@ -142,6 +142,17 @@ function table(box, rows, opts = {}) {
   box.innerHTML = h + "</tbody></table>";
 }
 const kpis = (arr) => `<div class="kpis">${arr.map(([l, v, red]) => `<div class="kpi${red ? " red" : ""}"><div class="l">${l}</div><div class="v">${v}</div></div>`).join("")}</div>`;
+const STAGE = { submitted: "With Underwriting", referred: "With Underwriting", returned: "Returned to Sales", uw_approved: "With GM (final approval)", board: "With Board", approved: "Approved", declined: "Declined" };
+const stage = (r) => r.uw_status === "approved" ? (r.issued_to_client_at ? (r.status === "active" ? "Issued · paid · in force" : "Issued · waiting for payment") : "Approved · issue to client") : STAGE[r.uw_status] || r.uw_status;
+function expoBox(ex) {
+  if (!ex) return "";
+  return `<div class="quote"><b>Africa Re and Platinum exposure</b><br>${esc(ex.section)}${ex.bound ? "" : " (offer terms, not yet bound)"}<br>
+    Sum insured USD ${money(ex.sum_insured)} · treaty capacity ${ex.capacity ? "USD " + money(ex.capacity) : "none"}<br>
+    Africa Re takes <b>USD ${money(ex.africa_re_takes)}</b> (${(Number(ex.ceded_pct || 0) * 100).toFixed(1)}%) · <b style="color:var(--gold)">Platinum keeps USD ${money(ex.platinum_keeps)}</b>
+    ${Number(ex.above_capacity) > 0 ? `<br><b style="color:var(--red)">USD ${money(ex.above_capacity)} above capacity — facultative must be placed and confirmed in writing first</b>` : ""}
+    ${ex.fac_needed && !(Number(ex.above_capacity) > 0) ? `<br><b style="color:var(--red)">Facultative reinsurance required before approval</b>` : ""}
+    ${ex.xl ? `<br>${esc(ex.xl)}` : ""}</div>`;
+}
 const printBtn = (no) => `<a class="btn ghost sm" style="display:inline-flex;align-items:center;text-decoration:none" href="print.html?no=${encodeURIComponent(no)}" target="_blank">Print</a>`;
 const csvBtn = (name) => `<button class="btn ghost sm" data-csv="${name}">Download</button>`;
 function bindCsv() {
@@ -154,14 +165,14 @@ function bindCsv() {
 
 // ---------- sections by position ----------
 const SECTIONS = {
-  sales: { name: "Sales", desc: "Quote and issue policies, take payment, print, my clients and renewals.", roles: ["sales", "underwriter", "gm", "admin"],
-    tabs: { s_new: "New policy", s_mine: "My policies", s_clients: "Clients", s_guide: "Product guide", u_lib: "Library" } },
+  sales: { name: "Sales", desc: "Enter policy requests for underwriting, issue approved policies to clients, take payment, renewals.", roles: ["sales", "underwriter", "gm", "admin"],
+    tabs: { s_new: "New policy request", s_mine: "My policies", s_clients: "Clients", s_guide: "Product guide" } },
   uw: { name: "Underwriting", desc: "Approve referred risks, check documents, product rules, claims and treaty.", roles: ["underwriter", "gm", "admin"],
-    tabs: { u_queue: "Approvals", u_all: "All policies", u_endorse: "Client clauses", u_word: "Standard wordings", u_rules: "Product rules", u_lib: "Policy library", u_claims: "Claims", u_treaty: "Africa Re" } },
+    tabs: { u_queue: "Review queue", u_all: "All policies", u_endorse: "Client clauses", u_word: "Standard wordings", u_rules: "Product rules", u_lib: "Policy library", u_claims: "Claims", u_treaty: "Africa Re" } },
   acct: { name: "Accounting", desc: "Receipts, debtors, commissions, payroll, month end, reports and compliance.", roles: ["accountant", "gm", "admin"],
     tabs: { a_receipts: "Receipts", a_debtors: "Debtors", a_comm: "Commissions", a_payroll: "Payroll", a_reports: "Reports", a_close: "Month end", g_cbl: "CBL quarterly", g_are: "Africa Re quarterly", a_comp: "Compliance" } },
-  gm: { name: "General Manager", desc: "Company overview, alerts, approvals up to USD 1,000,000, CBL and Africa Re quarterly reports, compliance, board report.", roles: ["gm", "admin"],
-    tabs: { g_over: "Overview", g_alerts: "Alerts", u_queue: "Approvals", g_cbl: "CBL quarterly", g_are: "Africa Re quarterly", a_comp: "Compliance", b_report: "Board report" } },
+  gm: { name: "General Manager", desc: "Company overview, alerts, final approval of every policy, CBL and Africa Re quarterly reports, compliance, board report.", roles: ["gm", "admin"],
+    tabs: { g_over: "Overview", g_alerts: "Alerts", g_appr: "Final approvals", g_cbl: "CBL quarterly", g_are: "Africa Re quarterly", a_comp: "Compliance", b_report: "Board report" } },
   ceo: { name: "CEO", desc: "Full access: overview, team and access, sign-off of product rules, audit trail.", roles: ["admin"],
     tabs: { g_over: "Overview", c_team: "Team & access", c_rules: "Sign off rules", c_word: "Sign off wordings", c_audit: "Audit trail", g_alerts: "Alerts" } },
   board: { name: "Board", desc: "Monthly board report and risks above management limits for approval.", roles: ["board", "admin"],
@@ -217,8 +228,8 @@ const VIEWS = {
     if (!TARIFF.length) TARIFF = await list("tariff");
     if (!CLASSES.length) CLASSES = await list("classes");
     V().innerHTML = `<div class="card">
-      <h2>New policy</h2>
-      <p class="note">The system prices every policy from the rate table. Motor third party is issued on the spot; other products go to underwriting for approval.</p>
+      <h2>New policy request</h2>
+      <p class="note">Enter the client and what is to be insured. The system prices it from the approved rates and sends it to Underwriting. Underwriting checks it against the product rules and the Africa Re treaty and signs it; the General Manager gives final approval; then it comes back to you under My policies to issue to the client.</p>
       <div class="grid">
         <label>Product<select id="n_class">${CLASSES.filter((c) => !c.blocked).map((c) => `<option value="${c.code}">${esc(c.name)}</option>`).join("")}</select></label>
         <label>Client name<input id="n_holder" list="n_cl"></label>
@@ -234,13 +245,12 @@ const VIEWS = {
       <div id="n_q"></div>
       <div id="n_issue" class="hide card" style="background:var(--navy)">
         <div class="grid">
-          <label>Paid now (USD)<input id="n_paid" inputmode="decimal"></label>
-          <label>Paid by<select id="n_method"><option value="cash">Cash</option><option value="momo">Mobile money</option><option value="bank">Bank</option><option value="cheque">Cheque</option></select></label>
-          <label>Receipt / reference<input id="n_ref"></label>
+          <label>Client email (optional)<input id="n_email" inputmode="email"></label>
           <label id="n_ovL" class="hide">Premium (underwriter)<input id="n_ov" inputmode="decimal" placeholder="Blank = rate table"></label>
         </div>
+        <label>Notes for Underwriting<textarea id="n_note" placeholder="Anything the underwriter should know: use of vehicles, claims history, documents received…"></textarea></label>
         <label style="flex-direction:row;align-items:center;gap:8px" id="n_docsL"><input type="checkbox" id="n_docs" style="width:22px;min-height:22px"> Documents seen and checked</label>
-        <button class="btn" id="n_go">Issue policy</button>
+        <button class="btn" id="n_go">Send to Underwriting</button>
       </div>
     </div>`;
     if (["underwriter", "gm", "admin"].includes(ME.role)) $("n_ovL").classList.remove("hide"); else $("n_docsL").classList.add("hide");
@@ -259,7 +269,7 @@ const VIEWS = {
     const read = () => ({
       class_code: $("n_class").value, holder: $("n_holder").value.trim(), phone: $("n_phone").value.trim(), start_date: $("n_start").value,
       items: [...document.querySelectorAll("#n_items .it")].map((d) => { const o = {}; d.querySelectorAll("[data-k]").forEach((i) => (o[i.dataset.k] = i.value.trim())); return o; }),
-      premium_override: $("n_ov").value, paid: $("n_paid").value, method: $("n_method").value, ref: $("n_ref").value, docs_verified: $("n_docs").checked,
+      premium_override: $("n_ov").value, email: $("n_email").value.trim(), note: $("n_note").value.trim(), docs_verified: $("n_docs").checked,
     });
     $("n_quote").onclick = run(async () => {
       const { quote: q } = await api({ action: "quote", p: read() });
@@ -267,29 +277,49 @@ const VIEWS = {
         <b style="font-size:18px;color:var(--gold)">Premium USD ${money(q.premium)}</b> + fees ${money(q.fee)} = <b>USD ${money(q.total)}</b><br>
         Cover ${q.start_date} to ${q.end_date}${q.sum_insured ? ` · Sum insured USD ${money(q.sum_insured)}` : ""}<br>
         <b>Limits:</b> ${esc(q.limits)}<br><b>Deductible:</b> ${esc(q.deductible)}<br><b>Documents needed:</b> ${esc(q.documents)}<br>
-        ${q.refer ? `<b style="color:var(--red)">Goes to ${esc(q.referred_to)} for approval:</b> ${esc(q.why)}` : `<b style="color:var(--green)">Can be issued now.</b>`}
+        <b>Next:</b> Underwriting review → General Manager final approval${q.board ? " → Board" : ""} → back to you to issue.${q.why ? `<br><b>Underwriting will look at:</b> ${esc(q.why)}` : ""}
         ${q.rule_status === "proposed" ? '<br><span class="pill p">Rates proposed — not yet signed off</span>' : ""}</div>`;
-      $("n_issue").classList.remove("hide"); $("n_go").textContent = q.refer ? "Send for approval" : "Issue policy";
+      $("n_issue").classList.remove("hide");
     });
     $("n_go").onclick = run(async () => {
       const { policy: p } = await api({ action: "create_policy", p: read() });
-      if (p.uw_status === "referred") say(`${p.policy_no} sent to ${p.referred_to} for approval.\n${p.referral_reason}`);
-      else { say(`${p.policy_no} issued · ${p.status === "active" ? "paid, cover in force" : "not yet paid — no cover until paid"}`); window.open("print.html?no=" + encodeURIComponent(p.policy_no), "_blank"); }
-      ["n_holder", "n_phone", "n_paid", "n_ref", "n_ov"].forEach((i) => ($(i).value = "")); reset();
+      say(`${p.policy_no} sent to Underwriting. You will find it under My policies when it is approved.`);
+      ["n_holder", "n_phone", "n_email", "n_note", "n_ov"].forEach((i) => ($(i).value = "")); reset();
     });
   },
   async s_mine() {
-    const rows = (await api({ action: "my_policies" })).rows;
+    const rows = (await api({ action: "my_policies" })).rows.map((r) => ({ ...r, stage: stage(r) }));
+    const toIssue = rows.filter((r) => r.uw_status === "approved" && !r.issued_to_client_at);
+    const returned = rows.filter((r) => r.uw_status === "returned");
+    const unpaid = rows.filter((r) => r.uw_status === "approved" && Number(r.balance) > 0);
     const soon = rows.filter((r) => r.uw_status === "approved" && r.end_date && new Date(r.end_date) - new Date() < 30 * 864e5 && r.end_date >= today());
-    V().innerHTML = `<div class="card"><h2>Take a payment</h2><div class="grid">
-        <label>Policy no.<select id="r_pol">${rows.filter((r) => r.uw_status === "approved" && Number(r.balance) > 0).map((r) => `<option value="${esc(r.policy_no)}">${esc(r.policy_no)} — ${esc(r.holder)} (${money(r.balance)})</option>`).join("")}</select></label>
+    V().innerHTML = `${kpis([["Approved — issue to client", toIssue.length, toIssue.length > 0], ["Returned to you", returned.length, returned.length > 0], ["Waiting for payment", unpaid.length], ["In approval", rows.filter((r) => ["submitted", "referred", "uw_approved", "board"].includes(r.uw_status)).length]])}
+      ${toIssue.length ? `<div class="card"><h2>Approved — issue to the client now</h2><p class="note">Final approval is given. Issue the stamped policy and send it to the client for immediate payment. Cover starts only when the premium is paid (CBL No Premium, No Cover).</p><div class="tablewrap" id="t_issue"></div></div>` : ""}
+      ${returned.length ? `<div class="card"><h2>Returned to you by Underwriting</h2><div class="tablewrap" id="t_ret"></div></div>` : ""}
+      <div class="card"><h2>Take a payment</h2><div class="grid">
+        <label>Policy no.<select id="r_pol">${unpaid.map((r) => `<option value="${esc(r.policy_no)}">${esc(r.policy_no)} — ${esc(r.holder)} (${money(r.balance)})</option>`).join("")}</select></label>
         <label>Amount (USD)<input id="r_amt" inputmode="decimal"></label>
         <label>Paid by<select id="r_m"><option value="cash">Cash</option><option value="momo">Mobile money</option><option value="bank">Bank</option><option value="cheque">Cheque</option></select></label>
         <label>Receipt / reference<input id="r_ref"></label></div><button class="btn" id="r_go">Record payment</button></div>
       ${soon.length ? `<div class="card"><h2>Renewals due in 30 days</h2><div class="tablewrap" id="t_soon"></div></div>` : ""}
       <div class="card"><h2>My policies</h2><div class="tablewrap" id="t_mine"></div></div>`;
-    if (soon.length) table("t_soon", soon, { hide: ["id", "class_code", "created_by", "referred_to", "docs_verified_at", "items"], extra: (r) => printBtn(r.policy_no) });
-    table("t_mine", rows, { hide: ["id", "class_code", "created_by"], extra: (r) => r.uw_status === "approved" ? printBtn(r.policy_no) : "" });
+    const hide = ["id", "class_code", "created_by", "uw_status", "referred_to", "docs_verified_at", "items", "issued_to_client_at", "status"];
+    const send = (r) => {
+      const total = money(Number(r.gross_premium) + Number(r.policy_fee || 0));
+      const msg = `Dear ${r.holder}, your Platinum Insurers policy ${r.policy_no} (${r.class_name}) has been approved. Premium due: USD ${total}. Please settle today at our office (Stop & Shop Building, Randall Street, Monrovia) or by bank transfer — cover starts only when the premium is received. Thank you. Platinum Insurers, Inc.`;
+      const ph = String(r.phone || "").replace(/[^\d]/g, "").replace(/^0/, "231");
+      return `${ph ? `<a class="btn ghost sm" style="display:inline-flex;align-items:center;text-decoration:none" target="_blank" href="https://wa.me/${ph}?text=${encodeURIComponent(msg)}">WhatsApp client</a> ` : ""}<a class="btn ghost sm" style="display:inline-flex;align-items:center;text-decoration:none" href="mailto:?subject=${encodeURIComponent("Your Platinum Insurers policy " + r.policy_no)}&body=${encodeURIComponent(msg + "\n\nYour policy document is attached.")}">Email client</a>`;
+    };
+    if (toIssue.length) table("t_issue", toIssue, { hide, extra: (r) => `<span class="row" style="flex-wrap:nowrap"><button class="btn sm" data-iss="${esc(r.policy_no)}">Issue stamped policy</button> ${send(r)}</span>` });
+    if (returned.length) table("t_ret", returned.map((r) => ({ policy_no: r.policy_no, holder: r.holder, class_name: r.class_name, gross_premium: r.gross_premium })), { extra: (r) => `<button class="btn sm" data-rs="${esc(r.policy_no)}">Resubmit</button>` });
+    if (soon.length) table("t_soon", soon, { hide, extra: (r) => printBtn(r.policy_no) });
+    table("t_mine", rows, { hide, extra: (r) => r.uw_status === "approved" ? `<span class="row" style="flex-wrap:nowrap">${printBtn(r.policy_no)} ${send(r)}</span>` : "" });
+    document.querySelectorAll("[data-iss]").forEach((b) => (b.onclick = run(async () => {
+      const w = window.open("print.html?no=" + encodeURIComponent(b.dataset.iss), "_blank");
+      await api({ action: "issue_client", policy_no: b.dataset.iss }); say(b.dataset.iss + " issued. Send it to the client for payment."); if (!w) location.href = "print.html?no=" + encodeURIComponent(b.dataset.iss); VIEWS.s_mine(); })));
+    document.querySelectorAll("[data-rs]").forEach((b) => (b.onclick = run(async () => {
+      const note = prompt("What did you change or add for Underwriting?"); if (note === null) return;
+      await api({ action: "resubmit", policy_no: b.dataset.rs, note }); say(b.dataset.rs + " sent back to Underwriting"); VIEWS.s_mine(); })));
     $("r_go").onclick = run(async () => { const r = await api({ action: "add_receipt", r: { policy_no: $("r_pol").value, amount: $("r_amt").value, method: $("r_m").value, ref: $("r_ref").value } }); say(`Payment recorded · ${r.policy.policy_no} ${r.policy.status === "active" ? "is now in force" : "is still part-paid"}`); VIEWS.s_mine(); });
   },
   async s_clients() { LAST = await list("clients"); V().innerHTML = `<div class="card"><div class="row" style="justify-content:space-between"><h2>Clients</h2>${csvBtn("clients")}</div><div class="tablewrap" id="t"></div></div>`; table("t", LAST, { hide: ["id"] }); bindCsv(); },
@@ -302,31 +332,67 @@ const VIEWS = {
   // ===== UNDERWRITING =====
   async u_queue() {
     const rows = await list("uw_queue");
-    const mine = ME.role === "board" ? rows.filter((r) => r.board_approval && r.uw_status === "referred") : rows;
-    V().innerHTML = `<div class="card"><h2>${ME.role === "board" ? "Risks above management limits" : "Waiting for a decision"}</h2>
-      <p class="note">Underwriting approves up to its limit, the General Manager up to USD 1,000,000, and the Board above that. Approving puts the policy on the books and cedes to Africa Re.</p>
+    const todo = rows.filter((r) => ["submitted", "referred"].includes(r.uw_status));
+    const later = rows.filter((r) => ["uw_approved", "board", "returned"].includes(r.uw_status)).map((r) => ({ policy_no: r.policy_no, holder: r.holder, class_name: r.class_name, sum_insured: r.sum_insured, stage: STAGE[r.uw_status], deductible: r.deductible_text, signed_by: r.uw_signed_by }));
+    const docs = rows.filter((r) => r.uw_status === "approved" && !r.docs_verified_at);
+    V().innerHTML = `<div class="card"><h2>Policies to review (${todo.length})</h2>
+      <p class="note">Check each policy against the product rules and the Africa Re treaty, set the deductible and conditions so Platinum is not over-exposed, then sign. Signed policies go automatically to the General Manager for final approval.</p>
       <div class="tablewrap" id="t"></div></div>
-      <div class="card"><h3>Approval limits</h3><div class="tablewrap"><table><tbody>
-      <tr><td>Sales</td><td>Motor third party on the tariff only</td></tr><tr><td>Underwriting</td><td>Up to USD 250,000 per risk</td></tr>
-      <tr><td>General Manager</td><td>Up to USD 1,000,000; motor comprehensive over 100,000; vehicles over 10 years</td></tr>
-      <tr><td>Board / CEO</td><td>Above USD 1,000,000 or above product capacity — facultative first; bonds</td></tr></tbody></table></div></div>`;
-    table("t", mine, { extra: (r) => {
-      let h = printBtn(r.policy_no) + " ";
-      if (r.uw_status === "referred") h += `<button class="btn sm" data-ok="${esc(r.policy_no)}">Approve</button> <button class="btn ghost sm" data-no="${esc(r.policy_no)}">Decline</button>`;
-      else if (!r.docs_verified_at && ME.role !== "board") h += `<button class="btn sm" data-doc="${esc(r.policy_no)}">Documents checked</button>`;
-      return `<span class="row" style="flex-wrap:nowrap">${h}</span>`; } });
-    document.querySelectorAll("[data-ok]").forEach((b) => (b.onclick = run(async () => {
-      const note = prompt(`Approve ${b.dataset.ok}?\nConditions or note (optional). For risks above capacity write "fac confirmed" once facultative is in writing.`); if (note === null) return;
-      const prem = ["underwriter", "gm", "admin"].includes(ME.role) ? prompt("New premium in USD (leave blank to keep the quoted premium)") : "";
-      await api({ action: "uw_decide", policy_no: b.dataset.ok, decision: "approve", reason: note, premium: prem, fac_confirmed: /fac/i.test(note) });
-      say(b.dataset.ok + " approved"); VIEWS.u_queue(); })));
-    document.querySelectorAll("[data-no]").forEach((b) => (b.onclick = run(async () => {
-      const reason = prompt("Reason for declining " + b.dataset.no); if (reason === null) return;
-      await api({ action: "uw_decide", policy_no: b.dataset.no, decision: "decline", reason }); say(b.dataset.no + " declined"); VIEWS.u_queue(); })));
+      <div id="rv"></div>
+      <div class="card"><h2>Signed — with GM / Board / returned</h2><div class="tablewrap" id="t2"></div></div>
+      ${docs.length ? `<div class="card"><h2>Approved — documents still to check</h2><p class="note">No claim is accepted for a loss earlier than 15 days after the documents are checked.</p><div class="tablewrap" id="t3"></div></div>` : ""}`;
+    table("t", todo.map((r) => ({ policy_no: r.policy_no, holder: r.holder, class_name: r.class_name, sum_insured: r.sum_insured, gross_premium: r.gross_premium, from_sales: r.created_by, notes: r.referral_reason })), { extra: (r) => `<span class="row" style="flex-wrap:nowrap">${printBtn(r.policy_no)} <button class="btn sm" data-rv="${esc(r.policy_no)}">Review</button></span>` });
+    table("t2", later, { extra: (r) => printBtn(r.policy_no) });
+    if (docs.length) table("t3", docs.map((r) => ({ policy_no: r.policy_no, holder: r.holder, class_name: r.class_name })), { extra: (r) => `<button class="btn sm" data-doc="${esc(r.policy_no)}">Documents checked</button>` });
     document.querySelectorAll("[data-doc]").forEach((b) => (b.onclick = run(async () => {
       const r = await api({ action: "verify_docs", policy_no: b.dataset.doc }); say(`Documents checked · claims accepted for losses from ${String(r.claims_from).slice(0, 10)}`); VIEWS.u_queue(); })));
+    document.querySelectorAll("[data-rv]").forEach((b) => (b.onclick = run(async () => {
+      const d = await api({ action: "policy_detail", policy_no: b.dataset.rv }); const p = d.p, ru = d.rule || {};
+      $("rv").innerHTML = `<div class="card" style="border:2px solid var(--gold)"><h2>Review ${esc(p.policy_no)} — ${esc(p.holder)}</h2>
+        <p class="note">${esc(p.class_name)} · cover ${String(p.start_date).slice(0, 10)} to ${String(p.end_date).slice(0, 10)} · premium USD ${money(p.gross_premium)} + fees ${money(p.policy_fee)} · entered by ${esc(p.created_by)}</p>
+        <div class="tablewrap" id="rv_items"></div>
+        ${expoBox(d.exposure)}
+        <div class="quote"><b>Product rule</b><br><b>Limits:</b> ${esc(ru.limits || "—")}<br><b>Standard deductible:</b> ${esc(ru.deductible || "—")}<br><b>Exclusions:</b> ${esc(ru.exclusions || "—")}<br><b>Documents:</b> ${esc(ru.documents || "—")}</div>
+        <label>Deductible for this policy<textarea id="rv_ded">${esc(p.deductible_text || ru.deductible || "")}</textarea></label>
+        <label>Conditions / warranties for this policy (printed on the schedule)<textarea id="rv_cond" placeholder="e.g. vehicles garaged at night; security guard on site">${esc(p.uw_conditions || "")}</textarea></label>
+        <div class="grid"><label>Premium USD (blank = keep ${money(p.gross_premium)})<input id="rv_prem" inputmode="decimal"></label><label>Note / reason<input id="rv_note"></label></div>
+        <label style="flex-direction:row;align-items:center;gap:8px"><input type="checkbox" id="rv_fac" style="width:22px;min-height:22px" ${p.fac_confirmed ? "checked" : ""}> Facultative reinsurance confirmed in writing (only needed above capacity)</label>
+        <label style="flex-direction:row;align-items:center;gap:8px"><input type="checkbox" id="rv_docs" style="width:22px;min-height:22px" ${p.docs_verified_at ? "checked disabled" : ""}> Client documents checked</label>
+        <div class="row"><button class="btn" id="rv_ok">Sign and send to GM</button><button class="btn ghost" id="rv_ret">Return to Sales</button><button class="btn ghost" id="rv_dec">Decline</button></div></div>`;
+      table("rv_items", d.items, {});
+      $("rv").scrollIntoView({ behavior: "smooth" });
+      const go = (decision) => run(async () => {
+        if (decision !== "approve" && !$("rv_note").value.trim()) throw new Error("Write the reason in Note / reason");
+        const r = await api({ action: "review", policy_no: p.policy_no, decision, deductible: $("rv_ded").value, conditions: $("rv_cond").value, premium: $("rv_prem").value, note: $("rv_note").value, fac_confirmed: $("rv_fac").checked, docs_verified: $("rv_docs").checked });
+        say(decision === "approve" ? `${p.policy_no} signed and sent to the General Manager` : decision === "return" ? `${p.policy_no} returned to Sales` : `${p.policy_no} declined`); VIEWS.u_queue();
+      });
+      $("rv_ok").onclick = go("approve"); $("rv_ret").onclick = go("return"); $("rv_dec").onclick = go("decline");
+    })));
   },
-  async u_all() { LAST = await list("policies"); V().innerHTML = `<div class="card"><div class="row" style="justify-content:space-between"><h2>All policies</h2>${csvBtn("policies")}</div><div class="tablewrap" id="t"></div></div>`; table("t", LAST, { hide: ["id", "class_code"], extra: (r) => `<span class="row" style="flex-wrap:nowrap">${printBtn(r.policy_no)}${r.uw_status === "approved" ? ` <button class="btn sm" data-cl="${esc(r.policy_no)}">Add clause</button>` : ""}</span>` }); bindCsv();
+  async g_appr() {
+    const rows = (await list("uw_queue")).filter((r) => r.uw_status === "uw_approved");
+    V().innerHTML = `<div class="card"><h2>Waiting for your final approval (${rows.length})</h2>
+      <p class="note">Every policy comes here after Underwriting has checked it and signed. Your approval puts it on the books, cedes Africa Re's share and sends it back to Sales to issue to the client. Risks above USD 1,000,000 or above treaty capacity go on to the Board after you.</p>
+      <div class="tablewrap" id="t"></div></div><div id="gv"></div>`;
+    table("t", rows.map((r) => ({ policy_no: r.policy_no, holder: r.holder, class_name: r.class_name, sum_insured: r.sum_insured, gross_premium: r.gross_premium, deductible: r.deductible_text, signed_by: r.uw_signed_by, board: r.board_approval })), { extra: (r) => `<span class="row" style="flex-wrap:nowrap">${printBtn(r.policy_no)} <button class="btn sm" data-gv="${esc(r.policy_no)}">Open</button></span>` });
+    document.querySelectorAll("[data-gv]").forEach((b) => (b.onclick = run(async () => {
+      const d = await api({ action: "policy_detail", policy_no: b.dataset.gv }); const p = d.p;
+      $("gv").innerHTML = `<div class="card" style="border:2px solid var(--gold)"><h2>${esc(p.policy_no)} — ${esc(p.holder)}</h2>
+        <p class="note">${esc(p.class_name)} · cover ${String(p.start_date).slice(0, 10)} to ${String(p.end_date).slice(0, 10)} · premium USD ${money(p.gross_premium)} + fees ${money(p.policy_fee)}</p>
+        <div class="tablewrap" id="gv_items"></div>
+        ${expoBox(d.exposure)}
+        <div class="quote"><b>Underwriting</b> — signed by ${esc(d.signed?.underwriter?.name || p.uw_signed_by)} on ${String(p.uw_signed_at || "").slice(0, 10)}<br><b>Deductible:</b> ${esc(p.deductible_text)}<br><b>Conditions:</b> ${esc(p.uw_conditions || "none")}<br><b>Notes:</b> ${esc(p.referral_reason || "none")}${p.board_approval ? '<br><b style="color:var(--red)">Board approval also required after yours</b>' : ""}</div>
+        <label>Note / reason<input id="gv_note"></label>
+        <div class="row"><button class="btn" id="gv_ok">Final approval</button><button class="btn ghost" id="gv_back">Send back to Underwriting</button><button class="btn ghost" id="gv_dec">Decline</button></div></div>`;
+      table("gv_items", d.items, {}); $("gv").scrollIntoView({ behavior: "smooth" });
+      const go = (decision) => run(async () => {
+        const r = await api({ action: "gm_decide", policy_no: p.policy_no, decision, note: $("gv_note").value });
+        say(r.status === "approved" ? `${p.policy_no} approved — back to Sales to issue to the client` : r.status === "board" ? `${p.policy_no} approved by you — now with the Board` : decision === "back" ? `${p.policy_no} sent back to Underwriting` : `${p.policy_no} declined`); VIEWS.g_appr();
+      });
+      $("gv_ok").onclick = go("approve"); $("gv_back").onclick = go("back"); $("gv_dec").onclick = go("decline");
+    })));
+  },
+  async u_all() { LAST = (await list("policies")).map((r) => ({ ...r, stage: stage(r) })); V().innerHTML = `<div class="card"><div class="row" style="justify-content:space-between"><h2>All policies</h2>${csvBtn("policies")}</div><div class="tablewrap" id="t"></div></div>`; table("t", LAST, { hide: ["id", "class_code"], extra: (r) => `<span class="row" style="flex-wrap:nowrap">${printBtn(r.policy_no)}${r.uw_status === "approved" ? ` <button class="btn sm" data-cl="${esc(r.policy_no)}">Add clause</button>` : ""}</span>` }); bindCsv();
     document.querySelectorAll("[data-cl]").forEach((b) => (b.onclick = () => { ENDORSE_FOR = b.dataset.cl; openTab("u_endorse"); })); },
   async u_claims() {
     const cl = await list("claims");
@@ -379,7 +445,7 @@ const VIEWS = {
   async u_word() { await wordingView(false); },
   async c_word() { await wordingView(true); },
   async u_lib() {
-    LAST = await list("library"); const canEdit = ["underwriter", "gm", "admin"].includes(ME.role);
+    const LIB = (await api({ action: "lib_list" })).rows; LAST = LIB.map(({ link, ...r }) => r); const canEdit = ["underwriter", "gm", "admin"].includes(ME.role);
     const cats = ["Policy wording", "Proposal form", "Schedule / certificate template", "Rate card", "Underwriting guide", "Claims form", "Regulation", "Reinsurance", "Other"];
     const classes = CLASSES.length ? CLASSES : (CLASSES = await list("classes"));
     V().innerHTML = `<div class="card"><div class="row" style="justify-content:space-between"><h2>Policy library</h2>${csvBtn("library")}</div>
@@ -393,10 +459,9 @@ const VIEWS = {
         <label>Replaces<select id="lb_r"><option value="">Nothing (new document)</option>${LAST.filter((x) => x.status !== "superseded").map((x) => `<option value="${x.id}">${esc(x.title)}${x.status === "missing" ? " (missing)" : ""}</option>`).join("")}</select></label>
         <label>File (PDF, Word, image — up to 15 MB)<input type="file" id="lb_file" style="padding-top:10px"></label><label>…or a link<input id="lb_u" placeholder="https://"></label></div>
         <label>Notes<input id="lb_n"></label><button class="btn" id="lb_go">Save to library</button></div>` : ""}`;
-    const show = () => table("t", LAST.filter((x) => !$("lb_f").value || x.category === $("lb_f").value), { hide: ["id"], extra: (r) =>
-      (r.source ? `<button class="btn ghost sm" data-open="${r.id}">Open</button>` : "") + (canEdit && r.status === "current" ? ` <button class="btn ghost sm" data-sup="${r.id}">Superseded</button>` : "") });
+    const show = () => table("t", LIB.filter((x) => !$("lb_f").value || x.category === $("lb_f").value).map((x) => ({ id: x.id, title: x.title, category: x.category, product: x.class_code || "All", version: x.version, status: x.status, notes: x.notes, link: x.link })), { hide: ["id", "link"], extra: (r) =>
+      (r.link ? `<a class="btn sm" style="display:inline-flex;align-items:center;text-decoration:none" href="${esc(r.link)}" target="_blank" rel="noopener">Open</a>` : `<span class="note">not uploaded</span>`) + (canEdit && r.status === "current" ? ` <button class="btn ghost sm" data-sup="${r.id}">Superseded</button>` : "") });
     const bind = () => {
-      document.querySelectorAll("[data-open]").forEach((b) => (b.onclick = run(async () => { const w = window.open("", "_blank"); const r = await api({ action: "lib_open", id: +b.dataset.open }); if (w) w.location = r.url; else location.href = r.url; })));
       document.querySelectorAll("[data-sup]").forEach((b) => (b.onclick = run(async () => { await api({ action: "lib_status", id: +b.dataset.sup, status: "superseded" }); say("Marked superseded"); VIEWS.u_lib(); })));
     };
     $("lb_f").onchange = () => { show(); bind(); }; show(); bind(); bindCsv();
@@ -505,7 +570,17 @@ const VIEWS = {
       <div class="row"><label style="flex:1">Month<input type="month" id="b_m" value="${def}"></label><a class="btn" id="b_open" target="_blank" style="align-self:flex-end;display:inline-flex;align-items:center;text-decoration:none">Open report</a></div></div>`;
     const set = () => ($("b_open").href = "board.html?m=" + $("b_m").value); $("b_m").onchange = set; set();
   },
-  async b_approvals() { await VIEWS.u_queue(); },
+  async b_approvals() {
+    const rows = (await list("uw_queue")).filter((r) => r.uw_status === "board" || (r.uw_status === "referred" && r.board_approval));
+    V().innerHTML = `<div class="card"><h2>Risks above management limits (${rows.length})</h2><p class="note">Signed by Underwriting and approved by the General Manager. Above USD 1,000,000 or above Africa Re capacity, facultative reinsurance must be confirmed in writing first.</p><div class="tablewrap" id="t"></div></div>`;
+    table("t", rows.map((r) => ({ policy_no: r.policy_no, holder: r.holder, class_name: r.class_name, sum_insured: r.sum_insured, gross_premium: r.gross_premium, deductible: r.deductible_text, conditions: r.uw_conditions, fac_confirmed: r.fac_confirmed })), { extra: (r) => `<span class="row" style="flex-wrap:nowrap">${printBtn(r.policy_no)} <button class="btn sm" data-ok="${esc(r.policy_no)}">Approve</button> <button class="btn ghost sm" data-no="${esc(r.policy_no)}">Decline</button></span>` });
+    document.querySelectorAll("[data-ok]").forEach((b) => (b.onclick = run(async () => {
+      const note = prompt(`Board approval for ${b.dataset.ok}. Note (optional):`); if (note === null) return;
+      await api({ action: "uw_decide", policy_no: b.dataset.ok, decision: "approve", reason: note }); say(b.dataset.ok + " approved by the Board — back to Sales to issue"); VIEWS.b_approvals(); })));
+    document.querySelectorAll("[data-no]").forEach((b) => (b.onclick = run(async () => {
+      const reason = prompt("Reason for declining " + b.dataset.no); if (reason === null) return;
+      await api({ action: "uw_decide", policy_no: b.dataset.no, decision: "decline", reason }); say(b.dataset.no + " declined"); VIEWS.b_approvals(); })));
+  },
   async g_cbl() { quarterView("cbl", "Quarterly return to the Central Bank of Liberia", "Premium and claims by class, income statement, financial position, capital and solvency against the USD 1,500,000 minimum, retention, reinsurance arrangements, large risks and compliance. Signed by the Accountant, GM and Chairman."); },
   async g_are() { quarterView("africare", "Quarterly submission to Africa Re", "Treaty account by section with balance due, premium bordereau, claims bordereau with cash calls, excess of loss instalments and premium against estimate."); },
 };

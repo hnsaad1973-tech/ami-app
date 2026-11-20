@@ -96,7 +96,7 @@ if (!approved) document.body.insertAdjacentHTML("beforeend", '<div class="void">
 out.innerHTML = `<div class="page">
   <div class="head">
     <div class="brand">PLATINUM INSURERS, INC.<small>${esc(co.office || "Stop & Shop Building, Randall Street, Monrovia, Liberia")}<br>Tel +231 770 258 520 · +231 775 502 780 · platinuminsurersliberiainc@gmail.com<br>Business Registration No. ${esc(co.business_registration_no || "052537207")} · Licensed by the Central Bank of Liberia</small></div>
-    <div class="doc"><h1>POLICY SCHEDULE</h1><div class="no">${esc(p.policy_no)}</div><div style="margin-top:6px">${status}</div></div>
+    <div class="doc"><h1>POLICY SCHEDULE</h1><div class="no">${esc(p.policy_no)}</div>${p.old_policy_no ? `<div style="margin-top:4px;font-size:12px">Replaces policy ${esc(p.old_policy_no)}</div>` : ""}<div style="margin-top:6px">${status}</div></div>
   </div>
 
   <h2>The insured</h2>

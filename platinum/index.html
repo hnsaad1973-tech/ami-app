@@ -392,10 +392,14 @@ const VIEWS = {
     const n = (st) => rows.filter((r) => r.status === st).length;
     const prem = rows.reduce((a, r) => a + Number(r.total_premium || 0), 0), out = rows.reduce((a, r) => a + Number(r.outstanding || 0), 0);
     V().innerHTML = kpis([["Clients", rows.length], ["To sign", n("proposed"), n("proposed") > 0 && !board], ["Signed", n("signed")], ["Premium (USD)", money(prem)], ...(board ? [] : [["Unpaid (USD)", money(out), out > 0]])]) +
+      (board ? "" : `<div class="card"><div class="row" style="justify-content:space-between"><div><h2>Replace old policies</h2><p class="note">Generate new Platinum policies (new number, Platinum wording, printable) for every old policy from the opening book and the register. Old numbers are kept for reference. Premiums and accounts do not change.</p></div><button class="btn" id="ri_all">Replace all old policies</button></div></div>`) +
       `<div class="card"><h2>Client underwriting files</h2><p class="note">${board ? "One file per client: covers, vehicles and premium. Underwriting signs each file." : "One file per client, built from the book: covers, vehicles, premium, unpaid balance, claims, fleet terms, deductibles and special terms. Check it, adjust the terms, then sign. Open a file to edit."}</p><div class="tablewrap" id="t"></div></div><div id="uf"></div>`;
     table("t", board ? rows : rows.map((r) => ({ client: r.client, kyc: r.kyc, covers: r.covers, policies: r.policies, vehicles: r.vehicles, total_premium: r.total_premium, outstanding: r.outstanding, claims: r.claims, next_renewal: r.next_renewal, status: r.status === "proposed" ? "To sign" : r.status, party_id: r.party_id })),
       { hide: ["party_id"], extra: board ? null : (r) => `<button class="btn sm ${r.status === "To sign" ? "" : "ghost"}" data-uf="${r.party_id}">Open / edit</button>` });
     document.querySelectorAll("[data-uf]").forEach((b) => (b.onclick = run(() => clientFile(+b.dataset.uf))));
+    if ($("ri_all")) $("ri_all").onclick = run(async () => {
+      if (!confirm("Generate new Platinum policies for ALL old policies (opening book and register)? Old numbers are kept for reference; premiums and accounts do not change.")) return;
+      const x = await kapi({ action: "pol_reissue", all: true }); say(`${x.done.length} new policies generated`); VIEWS.u_files(); });
   },
   // ===== KYC (v3.5) =====
   async s_kyc() {
@@ -719,11 +723,17 @@ async function clientFile(pid) {
     <h3>Underwriting terms</h3><div class="grid">${ta("fleet_terms", "Fleet terms and renewal")}${ta("deductibles", "Deductibles")}${ta("special_terms", "Special terms and conditions")}${ta("risk_notes", "Risk notes")}</div>
     <div class="row" style="justify-content:space-between;margin-top:8px"><h3>More details</h3><button class="btn ghost sm" id="cf_plus" title="Add a detail">＋ Add detail</button></div>
     <div id="cf_extra"></div>
-    <h3 style="margin-top:12px">Policies (${policies.length})</h3><div class="tablewrap" id="cf_pol"></div>
+    <div class="row" style="justify-content:space-between;margin-top:12px"><h3>Policies (${policies.length})</h3>${policies.some((p) => p.is_old) ? `<button class="btn sm" id="cf_riall">Replace all old policies (${policies.filter((p) => p.is_old).length})</button>` : ""}</div><div class="tablewrap" id="cf_pol"></div>
     ${r.sign_note ? `<p class="note"><b>Sign-off note:</b> ${esc(r.sign_note)}</p>` : ""}
     <p class="note">Changing a signed file sends it back for signing.</p>
     <div class="row"><button class="btn ghost" id="uf_save">Save changes</button><button class="btn" id="uf_sign">Sign file</button><button class="btn ghost" id="uf_dec">Decline</button><button class="btn ghost" id="uf_close">Close</button></div></div>`;
-  table("cf_pol", policies);
+  table("cf_pol", policies, { hide: ["is_old"], extra: (p) => p.is_old ? `<button class="btn sm" data-ri="${esc(p.policy_no)}">Generate new policy</button>` : printBtn(p.policy_no) });
+  document.querySelectorAll("[data-ri]").forEach((b) => (b.onclick = run(async () => {
+    if (!confirm(`Generate a new Platinum policy to replace ${b.dataset.ri}? The old number is kept for reference; premium and accounts do not change.`)) return;
+    const x = await kapi({ action: "pol_reissue", policy_no: b.dataset.ri }); say(`New policy ${x.done[0].new} replaces ${x.done[0].old}`); clientFile(pid); })));
+  if ($("cf_riall")) $("cf_riall").onclick = run(async () => {
+    const n = policies.filter((p) => p.is_old).length; if (!confirm(`Generate new Platinum policies for all ${n} old policies of ${c.name}?`)) return;
+    const x = await kapi({ action: "pol_reissue", all: true, party_id: pid }); say(`${x.done.length} new policies generated for ${c.name}`); clientFile(pid); });
   const drawExtra = () => {
     $("cf_extra").innerHTML = extra.length ? extra.map((x, i) => `<div class="row" style="gap:8px;align-items:flex-end;margin-bottom:6px"><label style="flex:1">Detail<input data-xl="${i}" value="${esc(x.label)}" placeholder="e.g. Fleet manager"></label><label style="flex:2">Value<input data-xv="${i}" value="${esc(x.value)}" placeholder="e.g. John Doe, 0777 000 000"></label><button class="btn ghost sm" data-xd="${i}" title="Remove">✕</button></div>`).join("") : '<p class="note">No extra details yet. Tap ＋ to add one (e.g. fleet manager, preferred garage, agent, payment terms).</p>';
     document.querySelectorAll("[data-xl]").forEach((e) => (e.oninput = () => (extra[+e.dataset.xl].label = e.value)));

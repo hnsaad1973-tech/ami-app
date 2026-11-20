@@ -116,9 +116,10 @@
       </div>
       <div id="codebox" class="hide">
         <h2 class="si-h">Check your email</h2>
-        <p class="si-p">We sent a code to <b id="si_to"></b>. Enter it below.</p>
+        <p class="si-p">We sent a code to <b id="si_to"></b>. Enter it below. <b>Only the code in the newest email works</b> — older codes stop working when a new one is sent. Check Spam if it is not in your inbox.</p>
         <input id="code" class="si-code" inputmode="numeric" autocomplete="one-time-code" maxlength="10" placeholder="••••••">
         <button class="si-btn" id="verify">Sign in</button>
+        <button class="si-link" id="si_resend" disabled>Send a new code</button>
         <button class="si-link" id="si_back">Use a different email</button>
       </div>
       <p class="si-foot">Staff access only · every action is recorded</p>
@@ -412,19 +413,45 @@ $("home").onclick = () => ME && showChooser();
 $("homeBtn").onclick = () => ME && showChooser();
 
 // ---------- sign in ----------
-$("sendcode").onclick = run(async () => {
-  const email = $("em").value.trim(); if (!email) return;
-  const { error } = await sb.auth.signInWithOtp({ email, options: { shouldCreateUser: false } });
-  if (error) throw new Error(/signup|not allowed|not found/i.test(error.message) ? "This email is not set up. Ask management for access." : error.message);
-  try { localStorage.setItem("plat_email", email); } catch (_) {}
-  $("si_to").textContent = email; $("si1").classList.add("hide"); $("codebox").classList.remove("hide"); $("code").focus();
-});
+let SENDING = false, COOL = null;
+const cooldown = (secs) => {
+  clearInterval(COOL); const b = $("si_resend"); let n = secs; b.disabled = true;
+  const tick = () => { if (n <= 0) { clearInterval(COOL); b.disabled = false; b.textContent = "Send a new code"; return; } b.textContent = `Send a new code (${n}s)`; n--; };
+  tick(); COOL = setInterval(tick, 1000);
+};
+const sendCode = async () => {
+  if (SENDING) return; // one request at a time — a second email would cancel the first code
+  const email = $("em").value.trim().toLowerCase(); if (!email) return;
+  SENDING = true; $("sendcode").disabled = true; $("sendcode").textContent = "Sending…";
+  try {
+    const { error } = await sb.auth.signInWithOtp({ email, options: { shouldCreateUser: false } });
+    if (error) {
+      const w = (error.message.match(/after (\d+) seconds/) || [])[1];
+      if (w) { $("si_to").textContent = email; $("si1").classList.add("hide"); $("codebox").classList.remove("hide"); cooldown(+w); throw new Error(`A code was just sent — use the code in your newest email. You can ask for a new one in ${w} seconds.`); }
+      throw new Error(/signup|not allowed|not found/i.test(error.message) ? "This email is not set up. Ask management for access." : error.message);
+    }
+    try { localStorage.setItem("plat_email", email); } catch (_) {}
+    $("si_to").textContent = email; $("si1").classList.add("hide"); $("codebox").classList.remove("hide"); $("code").value = ""; $("code").focus();
+    say("Code sent — check your email (and Spam)"); cooldown(60);
+  } finally { SENDING = false; $("sendcode").disabled = false; $("sendcode").textContent = "Send sign-in code"; }
+};
+$("sendcode").onclick = run(sendCode);
+$("si_resend").onclick = run(async () => { $("code").value = ""; await sendCode(); });
 $("si_back").onclick = () => { $("codebox").classList.add("hide"); $("si1").classList.remove("hide"); $("em").focus(); };
-$("em").addEventListener("keydown", (e) => { if (e.key === "Enter") $("sendcode").click(); });
-$("code").addEventListener("keydown", (e) => { if (e.key === "Enter") $("verify").click(); });
+$("em").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); $("sendcode").click(); } });
+$("code").addEventListener("input", () => { const v = $("code").value.replace(/\D/g, ""); if (v !== $("code").value) $("code").value = v; });
+$("code").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); $("verify").click(); } });
+let VERIFYING = false;
 $("verify").onclick = run(async () => {
-  const { error } = await sb.auth.verifyOtp({ email: $("em").value.trim(), token: $("code").value.trim(), type: "email" });
-  if (error) throw new Error(error.message); start();
+  if (VERIFYING) return;
+  const token = $("code").value.replace(/\D/g, "");
+  if (token.length < 6) throw new Error("Enter the full code from the email");
+  VERIFYING = true; $("verify").disabled = true;
+  try {
+    const { error } = await sb.auth.verifyOtp({ email: $("em").value.trim().toLowerCase(), token, type: "email" });
+    if (error) throw new Error(/expired|invalid/i.test(error.message) ? "That code is old or mistyped. Use the code in your NEWEST email, or tap “Send a new code”." : error.message);
+    clearInterval(COOL); start();
+  } finally { VERIFYING = false; $("verify").disabled = false; }
 });
 
 function tariffSelect(attr = "") {

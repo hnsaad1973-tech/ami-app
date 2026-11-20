@@ -1,4 +1,4 @@
-// Platinum — edit the CBL quarterly / Africa Re reports (GM and CEO only). Saved per quarter; "Back to books figures" removes the edits.
+// Platinum v1.1 — edit the CBL quarterly / Africa Re reports (GM and CEO only). Saved per quarter; "Back to books figures" removes the edits.
 let S;
 async function call(body) {
   const r = await fetch(S.url + "/functions/v1/platbooks", { method: "POST", headers: { "Content-Type": "application/json", Authorization: "Bearer " + S.session.access_token, apikey: S.key }, body: JSON.stringify(body) });
@@ -34,4 +34,16 @@ export async function init(kind, quarter, out) {
   }, true);
   bar.appendChild(info);
   const x = await call({ action: "qr_get", kind, quarter }); show(x.edit);
+  // warning while data is still pending (sum insured, opening balances, test stock) — printed too, so nothing goes out by mistake
+  try {
+    const r = await fetch(S.url + "/functions/v1/platcheck", { method: "POST", headers: { "Content-Type": "application/json", Authorization: "Bearer " + S.session.access_token, apikey: S.key }, body: "{}" });
+    const c = await r.json();
+    if (r.ok && c.pending_data) {
+      const p = (c.checks || []).find((k) => k.check === "Data still pending");
+      const w = document.createElement("div");
+      w.style.cssText = "max-width:210mm;margin:14px auto 0;background:#FDECEA;border:2px solid #B3261E;color:#B3261E;padding:10px 14px;border-radius:8px;font:600 13px Inter,Arial";
+      w.textContent = "NOT FINAL — do not send. Data still pending: " + (p ? p.note : "see Books check") + ".";
+      out.parentNode.insertBefore(w, out);
+    }
+  } catch (_) {}
 }

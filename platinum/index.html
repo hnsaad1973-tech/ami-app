@@ -334,8 +334,9 @@ function showChooser() {
   document.querySelectorAll("[data-sec]").forEach((b) => (b.onclick = () => openSection(b.dataset.sec)));
   $("chooser").classList.remove("hide");
 }
+let CUR_SEC = "";
 function openSection(k) {
-  const s = SECTIONS[k];
+  const s = SECTIONS[k]; CUR_SEC = k;
   $("chooser").classList.add("hide"); $("where").textContent = s.name;
   if (Object.values(SECTIONS).filter((x) => x.roles.includes(ME.role)).length > 1) $("homeBtn").classList.remove("hide");
   $("tabs").innerHTML = Object.entries(s.tabs).map(([id, n], i) => `<button class="tab" data-t="${id}" aria-pressed="${i === 0}">${n}</button>`).join("");
@@ -553,7 +554,7 @@ const VIEWS = {
   // ===== Agents and brokers (v4.1) =====
   async u_agents() {
     const { rows, sum } = await gapi({ action: "agent_list" }); LAST = rows;
-    const board = ME.role === "board", edit = ["underwriter", "gm", "admin"].includes(ME.role);
+    const board = ME.role === "board", acct = CUR_SEC === "acct", edit = !acct && ["underwriter", "gm", "admin"].includes(ME.role);
     const TY = { agent: "Agent", broker: "Broker" };
     V().innerHTML = (board ? "" : kpis([["Active agents", sum.active], ["Licences expiring (30 days)", sum.licence_due, sum.licence_due > 0], ["Policies with no agent", sum.direct_policies], ["Commission owed (USD)", money(sum.owed), Number(sum.owed) > 0]])) +
       (edit ? `<div class="card"><div class="row" style="justify-content:space-between"><div><h2>Agents and brokers</h2><p class="note">Register each agent or broker with their licence and commission rate, then give them their policies. Commission is earned when the client pays and is paid from Accounting → Commissions.</p></div><button class="btn" id="ag_new">＋ New agent / broker</button></div><div id="ag_form"></div></div>
@@ -565,12 +566,18 @@ const VIEWS = {
         <div class="row" style="justify-content:space-between;margin:8px 0"><label style="flex-direction:row;align-items:center;gap:8px"><input type="checkbox" id="as_all" style="width:22px;min-height:22px"> Tick all shown</label><span class="note" id="as_n">0 ticked</span></div>
         <div class="tablewrap" id="as_t"><p class="note" style="padding:12px">Loading policies…</p></div>
         <button class="btn" id="as_go" style="margin-top:10px">Give to agent</button></div>` : "") +
-      `<div class="card"><div class="row" style="justify-content:space-between"><h2>${board ? "Agents and brokers" : "Register"}</h2>${csvBtn("agents")}</div><div class="tablewrap" id="t"></div></div><div id="ag_view"></div>`;
+      `<div class="card"><div class="row" style="justify-content:space-between"><h2>${board || acct ? "Agents and brokers" : "Register"}</h2>${csvBtn("agents")}</div><div class="tablewrap" id="t"></div></div><div id="ag_view"></div>` +
+      (acct ? `<div class="card"><h2>Policies given to agents and brokers</h2><p class="note">Only policies under an agent or broker. Tap <b>Account</b> on an agent for their statement.</p><div class="tablewrap" id="acc_all"><p class="note" style="padding:12px">Loading…</p></div></div>` : "");
     table("t", rows.map((r) => board ? { ...r, agent_type: TY[r.agent_type] } : { code: r.code, name: r.name, type: TY[r.agent_type], area: r.area, phone: r.phone, licence_no: r.licence_no, licence_expiry: r.licence_expiry, rate: r.comm_pct + "%", status: r.status, policies: r.policies, premium: r.premium, earned: r.earned, paid: r.paid, owed: r.owed, id: r.id }),
       { hide: ["id"], extra: board ? null : (r) => `<button class="btn sm" data-acc="${r.id}">Account</button>${edit ? ` <button class="btn ghost sm" data-ag="${r.id}">Edit</button>` : ""}` });
     bindCsv();
     document.querySelectorAll("[data-ag]").forEach((b) => (b.onclick = run(() => agentForm(+b.dataset.ag, edit))));
     document.querySelectorAll("[data-acc]").forEach((b) => (b.onclick = run(() => agentAccount(+b.dataset.acc, edit))));
+    if (acct) {
+      const withPol = rows.filter((r) => r.policies > 0);
+      Promise.all(withPol.map((r) => gapi({ action: "agent_get", id: r.id }).then((x) => x.policies.map((p) => ({ agent: r.code + " · " + r.name, policy_no: p.policy_no, client: p.client, cover: p.class_code, start_date: p.start_date, end_date: p.end_date, status: p.status, premium: p.gross_premium, received: p.received, rate: p.comm_pct + "%", commission: p.commission })))))
+        .then((all) => table("acc_all", all.flat())).catch((e) => ($("acc_all").innerHTML = `<p class="note" style="padding:12px">${esc(e.message)}</p>`));
+    }
     if (!edit) return;
     $("ag_new").onclick = () => agentForm(null, true);
     let POL = []; const tick = new Set();

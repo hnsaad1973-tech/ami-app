@@ -177,7 +177,7 @@ async function agentForm(id, edit) {
       <label style="grid-column:1/-1">Payment details (bank or mobile money)<input id="ag_pay" value="${v(g.payment_details)}"${dis}></label>
       <label style="grid-column:1/-1">Notes<textarea id="ag_notes" rows="2"${dis}>${v(g.notes)}</textarea></label></div>
     <div class="row" style="justify-content:space-between"><b>More details</b>${edit ? '<button class="btn ghost sm" id="ag_add">＋ Add detail</button>' : ""}</div><div id="ag_extra"></div>
-    ${edit ? '<button class="btn" id="ag_save">Save</button>' : ""}
+    ${edit ? `<div class="row"><button class="btn" id="ag_save">Save</button>${id && g.status === "active" ? '<button class="btn ghost" id="ag_give">Give policies to this agent</button>' : ""}</div>` : ""}
     ${id ? `<h2 style="margin-top:16px">Policies (${d.policies.length})</h2><div class="tablewrap" id="ag_pt"></div><h2 style="margin-top:16px">Commission statement</h2><div class="tablewrap" id="ag_lt"></div>` : ""}</div>`;
   $("ag_type").value = g.agent_type || "agent"; $("ag_st").value = g.status || "active";
   const drawX = () => {
@@ -188,6 +188,7 @@ async function agentForm(id, edit) {
   };
   drawX();
   $("ag_close").onclick = () => (box.innerHTML = "");
+  if ($("ag_give")) $("ag_give").onclick = () => { $("as_ag").value = String(id); $("as_card").scrollIntoView({ behavior: "smooth" }); };
   if (edit) {
     $("ag_add").onclick = () => { extra.push({ label: "", value: "" }); drawX(); };
     $("ag_save").onclick = run(async () => {
@@ -346,6 +347,7 @@ const VIEWS = {
       <div id="n_q"></div>
       <div id="n_issue" class="hide card" style="background:var(--navy)">
         <div class="grid">
+          <label>Agent / broker<select id="n_agent"><option value="">Direct — no agent</option></select></label>
           <label>Client email (optional)<input id="n_email" inputmode="email"></label>
           <label id="n_ovL" class="hide">Premium (underwriter)<input id="n_ov" inputmode="decimal" placeholder="Blank = rate table"></label>
         </div>
@@ -355,6 +357,8 @@ const VIEWS = {
       </div>
     </div>`;
     if (["underwriter", "gm", "admin"].includes(ME.role)) $("n_ovL").classList.remove("hide"); else $("n_docsL").classList.add("hide");
+    gapi({ action: "agent_list" }).then((x) => { let last = ""; try { last = localStorage.getItem("plat_agent") || ""; } catch (_) {}
+      $("n_agent").innerHTML = '<option value="">Direct — no agent</option>' + x.rows.filter((r) => !r.status || r.status === "active").map((r) => `<option value="${r.id}"${String(r.id) === last ? " selected" : ""}>${esc(r.code + " · " + r.name)}</option>`).join(""); }).catch(() => {});
     api({ action: "my_clients" }).then((c) => ($("n_cl").innerHTML = c.rows.map((x) => `<option value="${esc(x.client)}">`).join(""))).catch(() => {});
     const isTariff = () => ["MTPL", "MFLEET"].includes($("n_class").value);
     const addItem = () => {
@@ -384,7 +388,11 @@ const VIEWS = {
     });
     $("n_go").onclick = run(async () => {
       const { policy: p } = await api({ action: "create_policy", p: read() });
-      say(`${p.policy_no} sent to Underwriting. You will find it under My policies when it is approved.`);
+      const ag = $("n_agent"); let agMsg = "";
+      try { localStorage.setItem("plat_agent", ag.value); } catch (_) {}
+      if (ag.value) { try { await gapi({ action: "agent_assign", k: { agent_id: ag.value, policy_nos: [p.policy_no] } }); agMsg = " under " + ag.options[ag.selectedIndex].text; }
+        catch (e) { agMsg = " — agent not set (" + e.message + "), set it under Agents & brokers"; } }
+      say(`${p.policy_no} sent to Underwriting${agMsg}. You will find it under My policies when it is approved.`);
       ["n_holder", "n_phone", "n_email", "n_note", "n_ov"].forEach((i) => ($(i).value = "")); reset();
     });
   },
@@ -496,12 +504,14 @@ const VIEWS = {
     const TY = { agent: "Agent", broker: "Broker" };
     V().innerHTML = (board ? "" : kpis([["Active agents", sum.active], ["Licences expiring (30 days)", sum.licence_due, sum.licence_due > 0], ["Policies with no agent", sum.direct_policies], ["Commission owed (USD)", money(sum.owed), Number(sum.owed) > 0]])) +
       (edit ? `<div class="card"><div class="row" style="justify-content:space-between"><div><h2>Agents and brokers</h2><p class="note">Register each agent or broker with their licence and commission rate, then give them their policies. Commission is earned when the client pays and is paid from Accounting → Commissions.</p></div><button class="btn" id="ag_new">＋ New agent / broker</button></div><div id="ag_form"></div></div>
-      <div class="card"><h2>Give an agent to policies</h2><p class="note">Pick the agent, then enter policy numbers (new or old, separated by commas) or choose a client to give all their policies. Leave the rate empty to use the agent's own rate. Choose "No agent (direct)" to remove an agent. Commission already booked on money received moves to the new agent.</p>
+      <div class="card" id="as_card"><h2>Give policies to an agent</h2><p class="note">Tick the policies, pick the agent, then tap <b>Give to agent</b>. Leave the rate empty to use the agent's own rate. Choose "No agent (direct)" to take policies away from an agent. Commission already booked on money received moves to the new agent.</p>
         <div class="grid"><label>Agent<select id="as_ag"><option value="">No agent (direct)</option>${rows.filter((r) => r.status === "active").map((r) => `<option value="${r.id}">${esc(r.code + " · " + r.name)} (${r.comm_pct}%)</option>`).join("")}</select></label>
           <label>Commission % (optional)<input id="as_pct" type="number" step="0.01" placeholder="agent's rate"></label>
-          <label>Client (all their policies)<select id="as_cl"><option value="">—</option></select></label>
-          <label style="grid-column:1/-1">Or policy numbers<input id="as_pol" placeholder="e.g. PIL11/20/26/1045, PIL11/20/26/1046"></label></div>
-        <button class="btn" id="as_go">Give to agent</button></div>` : "") +
+          <label>Show<select id="as_f"><option value="none">Policies with no agent</option><option value="">All policies</option></select></label>
+          <label>Search<input id="as_q" placeholder="Client or policy number"></label></div>
+        <div class="row" style="justify-content:space-between;margin:8px 0"><label style="flex-direction:row;align-items:center;gap:8px"><input type="checkbox" id="as_all" style="width:22px;min-height:22px"> Tick all shown</label><span class="note" id="as_n">0 ticked</span></div>
+        <div class="tablewrap" id="as_t"><p class="note" style="padding:12px">Loading policies…</p></div>
+        <button class="btn" id="as_go" style="margin-top:10px">Give to agent</button></div>` : "") +
       `<div class="card"><div class="row" style="justify-content:space-between"><h2>${board ? "Agents and brokers" : "Register"}</h2>${csvBtn("agents")}</div><div class="tablewrap" id="t"></div></div><div id="ag_view"></div>`;
     table("t", rows.map((r) => board ? { ...r, agent_type: TY[r.agent_type] } : { code: r.code, name: r.name, type: TY[r.agent_type], area: r.area, phone: r.phone, licence_no: r.licence_no, licence_expiry: r.licence_expiry, rate: r.comm_pct + "%", status: r.status, policies: r.policies, premium: r.premium, earned: r.earned, paid: r.paid, owed: r.owed, id: r.id }),
       { hide: ["id"], extra: board ? null : (r) => `<button class="btn ghost sm" data-ag="${r.id}">${edit ? "Open / edit" : "Statement"}</button>` });
@@ -509,13 +519,25 @@ const VIEWS = {
     document.querySelectorAll("[data-ag]").forEach((b) => (b.onclick = run(() => agentForm(+b.dataset.ag, edit))));
     if (!edit) return;
     $("ag_new").onclick = () => agentForm(null, true);
-    kapi({ action: "uw_files" }).then((x) => { $("as_cl").innerHTML = '<option value="">—</option>' + x.rows.slice().sort((a, b) => String(a.client).localeCompare(b.client)).map((r) => `<option value="${r.party_id}">${esc(r.client)}</option>`).join(""); }).catch(() => {});
+    let POL = []; const tick = new Set();
+    const drawP = () => {
+      const f = $("as_f").value, q = $("as_q").value.toLowerCase();
+      const shown = POL.filter((r) => (f !== "none" || !r.agent) && (!q || [r.client, r.policy_no, r.old_policy_no].some((x) => String(x || "").toLowerCase().includes(q))));
+      $("as_t").innerHTML = shown.length ? `<table><thead><tr><th></th><th>Policy</th><th>Client</th><th>Cover</th><th>Start</th><th>End</th><th>Premium</th><th>Agent now</th></tr></thead><tbody>` +
+        shown.map((r) => `<tr><td><input type="checkbox" data-tp="${r.id}" ${tick.has(r.id) ? "checked" : ""} style="width:22px;min-height:22px"></td><td>${esc(r.policy_no)}${r.old_policy_no ? `<br><span class="note">was ${esc(r.old_policy_no)}</span>` : ""}</td><td>${esc(r.client || "")}</td><td>${esc(r.cover || "")}</td><td>${esc(String(r.start_date || "").slice(0, 10))}</td><td>${esc(String(r.end_date || "").slice(0, 10))}</td><td class="n">${money(r.premium)}</td><td>${r.agent ? esc(r.agent_code + " · " + r.agent) + ` (${r.rate}%)` : '<span class="note">Direct</span>'}</td></tr>`).join("") + "</tbody></table>"
+        : '<p class="note" style="padding:12px">No policies to show.</p>';
+      document.querySelectorAll("[data-tp]").forEach((c) => (c.onchange = () => { const id = +c.dataset.tp; c.checked ? tick.add(id) : tick.delete(id); $("as_n").textContent = tick.size + " ticked"; }));
+      $("as_all").checked = shown.length > 0 && shown.every((r) => tick.has(r.id));
+      $("as_all").onchange = () => { shown.forEach((r) => ($("as_all").checked ? tick.add(r.id) : tick.delete(r.id))); drawP(); };
+      $("as_n").textContent = tick.size + " ticked";
+    };
+    $("as_f").onchange = drawP; $("as_q").oninput = drawP;
+    gapi({ action: "agent_policies" }).then((x) => { POL = x.rows; drawP(); }).catch((e) => ($("as_t").innerHTML = `<p class="note" style="padding:12px">${esc(e.message)}</p>`));
     $("as_go").onclick = run(async () => {
-      const agent = $("as_ag"), cl = $("as_cl");
-      if (!cl.value && !$("as_pol").value.trim()) throw new Error("Enter policy numbers or choose a client");
-      const who = agent.value ? agent.options[agent.selectedIndex].text : "no agent (direct)";
-      if (!confirm(`Give ${cl.value ? "ALL policies of " + cl.options[cl.selectedIndex].text : $("as_pol").value.trim()} to ${who}?`)) return;
-      const x = await gapi({ action: "agent_assign", k: { agent_id: agent.value || null, comm_pct: $("as_pct").value, party_id: cl.value || null, policy_nos: $("as_pol").value } });
+      if (!tick.size) throw new Error("Tick at least one policy");
+      const agent = $("as_ag"); const who = agent.value ? agent.options[agent.selectedIndex].text : "no agent (direct)";
+      if (!confirm(`Give ${tick.size} polic${tick.size === 1 ? "y" : "ies"} to ${who}?`)) return;
+      const x = await gapi({ action: "agent_assign", k: { agent_id: agent.value || null, comm_pct: $("as_pct").value, policy_ids: [...tick] } });
       say(`${x.count} polic${x.count === 1 ? "y" : "ies"} given to ${who} at ${x.rate}%${x.adjusted ? " · commission already booked moved on " + x.adjusted : ""}`); VIEWS.u_agents(); });
   },
   // ===== KYC (v3.5) =====

@@ -394,21 +394,8 @@ const VIEWS = {
     V().innerHTML = kpis([["Clients", rows.length], ["To sign", n("proposed"), n("proposed") > 0 && !board], ["Signed", n("signed")], ["Premium (USD)", money(prem)], ...(board ? [] : [["Unpaid (USD)", money(out), out > 0]])]) +
       `<div class="card"><h2>Client underwriting files</h2><p class="note">${board ? "One file per client: covers, vehicles and premium. Underwriting signs each file." : "One file per client, built from the book: covers, vehicles, premium, unpaid balance, claims, fleet terms, deductibles and special terms. Check it, adjust the terms, then sign. Open a file to edit."}</p><div class="tablewrap" id="t"></div></div><div id="uf"></div>`;
     table("t", board ? rows : rows.map((r) => ({ client: r.client, kyc: r.kyc, covers: r.covers, policies: r.policies, vehicles: r.vehicles, total_premium: r.total_premium, outstanding: r.outstanding, claims: r.claims, next_renewal: r.next_renewal, status: r.status === "proposed" ? "To sign" : r.status, party_id: r.party_id })),
-      { hide: ["party_id"], extra: board ? null : (r) => `<button class="btn sm ${r.status === "To sign" ? "" : "ghost"}" data-uf="${r.party_id}">Open</button>` });
-    document.querySelectorAll("[data-uf]").forEach((b) => (b.onclick = () => {
-      const r = rows.find((x) => x.party_id == b.dataset.uf);
-      const ta = (f, l) => `<label style="grid-column:1/-1">${l}<textarea id="uf_${f}" rows="3">${esc(r[f] || "")}</textarea></label>`;
-      $("uf").innerHTML = `<div class="card" id="ufc"><div class="row" style="justify-content:space-between"><h2>${esc(r.client)}</h2><span class="pill ${r.status === "signed" ? "a" : "p"}">${r.status === "signed" ? "Signed by " + esc(r.signed_by) : r.status === "declined" ? "Declined" : "To sign"}</span></div>
-        <p class="note">${esc(r.covers)} · ${r.policies} policies · ${r.vehicles} vehicles/items · premium USD ${money(r.total_premium)} · unpaid USD ${money(r.outstanding)} · claims ${r.claims} · next renewal ${String(r.next_renewal || "").slice(0, 10)} · KYC ${esc(r.kyc)}</p>
-        <div class="grid">${ta("fleet_terms", "Fleet terms and renewal")}${ta("deductibles", "Deductibles")}${ta("special_terms", "Special terms and conditions")}${ta("risk_notes", "Risk notes")}</div>
-        ${r.sign_note ? `<p class="note"><b>Sign-off note:</b> ${esc(r.sign_note)}</p>` : ""}
-        <div class="row"><button class="btn ghost" id="uf_save">Save</button><button class="btn" id="uf_sign">Sign file</button><button class="btn ghost" id="uf_dec">Decline</button></div></div>`;
-      const f = (decision, note) => ({ party_id: r.party_id, fleet_terms: $("uf_fleet_terms").value, deductibles: $("uf_deductibles").value, special_terms: $("uf_special_terms").value, risk_notes: $("uf_risk_notes").value, decision, note });
-      $("uf_save").onclick = run(async () => { await kapi({ action: "uw_file_save", f: f() }); say("Saved"); VIEWS.u_files(); });
-      $("uf_sign").onclick = run(async () => { const note = prompt("Sign-off note (what you checked):"); if (!note) return; await kapi({ action: "uw_file_save", f: f("sign", note) }); say(r.client + " file signed"); VIEWS.u_files(); });
-      $("uf_dec").onclick = run(async () => { const note = prompt("Why decline (non-renewal or terms)?"); if (!note) return; await kapi({ action: "uw_file_save", f: f("decline", note) }); say(r.client + " file declined"); VIEWS.u_files(); });
-      $("ufc").scrollIntoView({ behavior: "smooth" });
-    }));
+      { hide: ["party_id"], extra: board ? null : (r) => `<button class="btn sm ${r.status === "To sign" ? "" : "ghost"}" data-uf="${r.party_id}">Open / edit</button>` });
+    document.querySelectorAll("[data-uf]").forEach((b) => (b.onclick = run(() => clientFile(+b.dataset.uf))));
   },
   // ===== KYC (v3.5) =====
   async s_kyc() {
@@ -718,6 +705,43 @@ const VIEWS = {
   async g_cbl() { quarterView("cbl", "Quarterly return to the Central Bank of Liberia", "Premium and claims by class, income statement, financial position, capital and solvency against the USD 1,500,000 minimum, retention, reinsurance arrangements, large risks and compliance. Signed by the Accountant, GM and Chairman."); },
   async g_are() { quarterView("africare", "Quarterly submission to Africa Re", "Treaty account by section with balance due, premium bordereau, claims bordereau with cash calls, excess of loss instalments and premium against estimate."); },
 };
+
+// ---------- client underwriting file (edit) ----------
+async function clientFile(pid) {
+  const { party: c, file: r, policies } = await kapi({ action: "uw_file_get", party_id: pid });
+  const extra = (r.extra || []).slice();
+  const inp = (id, l, v, t = "text") => `<label>${l}<input id="${id}" type="${t}" value="${esc(v || "")}"></label>`;
+  const ta = (f, l) => `<label style="grid-column:1/-1">${l}<textarea id="uf_${f}" rows="3">${esc(r[f] || "")}</textarea></label>`;
+  const ST = { proposed: "To sign", signed: "Signed by " + esc(r.signed_by || ""), declined: "Declined" };
+  $("uf").innerHTML = `<div class="card" id="ufc"><div class="row" style="justify-content:space-between"><h2>${esc(c.name)}</h2><span class="pill ${r.status === "signed" ? "a" : "p"}">${ST[r.status] || r.status}</span></div>
+    <p class="note">${esc(r.covers || "")} · ${r.policies} policies · ${r.vehicles} vehicles/items · premium USD ${money(r.total_premium)} · unpaid USD ${money(r.outstanding)} · claims ${r.claims} · next renewal ${String(r.next_renewal || "").slice(0, 10)}</p>
+    <h3>Client details</h3><div class="grid">${inp("cf_name", "Client name", c.name)}${inp("cf_company", "Company", c.company)}${inp("cf_phone", "Phone / WhatsApp", c.phone, "tel")}${inp("cf_email", "Email", c.email, "email")}${inp("cf_address", "Address", c.address)}${inp("cf_notes", "Notes", c.notes)}</div>
+    <h3>Underwriting terms</h3><div class="grid">${ta("fleet_terms", "Fleet terms and renewal")}${ta("deductibles", "Deductibles")}${ta("special_terms", "Special terms and conditions")}${ta("risk_notes", "Risk notes")}</div>
+    <div class="row" style="justify-content:space-between;margin-top:8px"><h3>More details</h3><button class="btn ghost sm" id="cf_plus" title="Add a detail">＋ Add detail</button></div>
+    <div id="cf_extra"></div>
+    <h3 style="margin-top:12px">Policies (${policies.length})</h3><div class="tablewrap" id="cf_pol"></div>
+    ${r.sign_note ? `<p class="note"><b>Sign-off note:</b> ${esc(r.sign_note)}</p>` : ""}
+    <p class="note">Changing a signed file sends it back for signing.</p>
+    <div class="row"><button class="btn ghost" id="uf_save">Save changes</button><button class="btn" id="uf_sign">Sign file</button><button class="btn ghost" id="uf_dec">Decline</button><button class="btn ghost" id="uf_close">Close</button></div></div>`;
+  table("cf_pol", policies);
+  const drawExtra = () => {
+    $("cf_extra").innerHTML = extra.length ? extra.map((x, i) => `<div class="row" style="gap:8px;align-items:flex-end;margin-bottom:6px"><label style="flex:1">Detail<input data-xl="${i}" value="${esc(x.label)}" placeholder="e.g. Fleet manager"></label><label style="flex:2">Value<input data-xv="${i}" value="${esc(x.value)}" placeholder="e.g. John Doe, 0777 000 000"></label><button class="btn ghost sm" data-xd="${i}" title="Remove">✕</button></div>`).join("") : '<p class="note">No extra details yet. Tap ＋ to add one (e.g. fleet manager, preferred garage, agent, payment terms).</p>';
+    document.querySelectorAll("[data-xl]").forEach((e) => (e.oninput = () => (extra[+e.dataset.xl].label = e.value)));
+    document.querySelectorAll("[data-xv]").forEach((e) => (e.oninput = () => (extra[+e.dataset.xv].value = e.value)));
+    document.querySelectorAll("[data-xd]").forEach((e) => (e.onclick = () => { extra.splice(+e.dataset.xd, 1); drawExtra(); }));
+  };
+  drawExtra();
+  $("cf_plus").onclick = () => { extra.push({ label: "", value: "" }); drawExtra(); const ins = document.querySelectorAll("[data-xl]"); if (ins.length) ins[ins.length - 1].focus(); };
+  const client = () => ({ name: $("cf_name").value, company: $("cf_company").value, phone: $("cf_phone").value, email: $("cf_email").value, address: $("cf_address").value, notes: $("cf_notes").value });
+  const clientChanged = () => { const n = client(); return ["name", "company", "phone", "email", "address", "notes"].some((k) => (n[k] || "").trim() !== (c[k] || "")); };
+  const f = (decision, note) => ({ party_id: pid, client: client(), client_changed: clientChanged(), extra: extra.filter((x) => (x.label || "").trim() || (x.value || "").trim()),
+    fleet_terms: $("uf_fleet_terms").value, deductibles: $("uf_deductibles").value, special_terms: $("uf_special_terms").value, risk_notes: $("uf_risk_notes").value, decision, note });
+  $("uf_save").onclick = run(async () => { const x = await kapi({ action: "uw_file_save", f: f() }); say(x.status === "proposed" && r.status === "signed" ? "Saved — the file goes back for signing" : "Saved"); await VIEWS.u_files(); clientFile(pid); });
+  $("uf_sign").onclick = run(async () => { const note = prompt("Sign-off note (what you checked):"); if (!note) return; await kapi({ action: "uw_file_save", f: f("sign", note) }); say(c.name + " file signed"); VIEWS.u_files(); });
+  $("uf_dec").onclick = run(async () => { const note = prompt("Why decline (non-renewal or terms)?"); if (!note) return; await kapi({ action: "uw_file_save", f: f("decline", note) }); say(c.name + " file declined"); VIEWS.u_files(); });
+  $("uf_close").onclick = () => ($("uf").innerHTML = "");
+  $("ufc").scrollIntoView({ behavior: "smooth" });
+}
 
 // ---------- KYC form ----------
 const KYC_DOCS = { id: "ID / passport", address: "Proof of address", registration: "Business registration", tin: "TIN certificate", other: "Other" };

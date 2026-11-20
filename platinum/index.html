@@ -276,7 +276,7 @@ async function reapi(body) {
   if (!r.ok || j.error) throw new Error(j.error || "Error " + r.status);
   return j;
 }
-let RE_OK = false, RE_SEL = null;
+let RE_OK = false, RE_SEL = null, BC_DATE = "";
 const secOK = (k, s) => s.roles.includes(ME.role) && (k !== "re" || RE_OK);
 async function sapi(body) {
   const { data: { session } } = await sb.auth.getSession();
@@ -369,11 +369,11 @@ const SECTIONS = {
   uw: { name: "Underwriting", desc: "Approve referred risks, check documents, product rules, claims and treaty.", roles: ["underwriter", "gm", "admin"],
     tabs: { u_queue: "Review queue", u_files: "Client files", u_certs: "Stickers & Brown Cards", s_kyc: "KYC checks", u_all: "All policies", u_endorse: "Client clauses", u_word: "Standard wordings", u_rules: "Product rules", u_lib: "Policy library", u_claims: "Claims", u_treaty: "Africa Re" } },
   acct: { name: "Accounting", desc: "Receipts, debtors, creditors, purchases, petty cash, payroll, month end, reports and compliance.", roles: ["accountant", "gm", "admin"],
-    tabs: { a_receipts: "Receipts", a_claims: "Claim payments", a_debtors: "Debtors", a_cred: "Creditors", a_purch: "Purchases", a_petty: "Petty cash", a_payroll: "Payroll", a_reports: "Reports", a_close: "Month end", a_comp: "Compliance" } },
+    tabs: { a_receipts: "Receipts", a_claims: "Claim payments", a_check: "Books check", a_debtors: "Debtors", a_cred: "Creditors", a_purch: "Purchases", a_petty: "Petty cash", a_payroll: "Payroll", a_reports: "Reports", a_close: "Month end", a_comp: "Compliance" } },
   gm: { name: "General Manager", desc: "Company overview, alerts, final approval of every policy, CBL and Africa Re quarterly reports, compliance, board report.", roles: ["gm", "admin"],
-    tabs: { g_over: "Overview", g_alerts: "Alerts", g_appr: "Final approvals", g_claims: "Claim approvals", s_clients: "All client contacts", s_kyc: "KYC", u_files: "Client files", u_certs: "Stickers & Brown Cards", g_cbl: "CBL quarterly", g_are: "Africa Re quarterly", a_comp: "Compliance", b_report: "Board report", g_share: "Share approvals" } },
+    tabs: { g_over: "Overview", a_check: "Books check", g_alerts: "Alerts", g_appr: "Final approvals", g_claims: "Claim approvals", s_clients: "All client contacts", s_kyc: "KYC", u_files: "Client files", u_certs: "Stickers & Brown Cards", g_cbl: "CBL quarterly", g_are: "Africa Re quarterly", a_comp: "Compliance", b_report: "Board report", g_share: "Share approvals" } },
   ceo: { name: "CEO", desc: "Full access: overview, team and access, sign-off of product rules, audit trail.", roles: ["admin"],
-    tabs: { g_over: "Overview", s_clients: "All client contacts", s_kyc: "KYC", u_files: "Client files", u_certs: "Stickers & Brown Cards", g_cbl: "CBL quarterly", g_are: "Africa Re quarterly", c_team: "Team & access", c_rules: "Sign off rules", c_word: "Sign off wordings", c_audit: "Audit trail", g_alerts: "Alerts", g_share: "Share approvals" } },
+    tabs: { g_over: "Overview", a_check: "Books check", s_clients: "All client contacts", s_kyc: "KYC", u_files: "Client files", u_certs: "Stickers & Brown Cards", g_cbl: "CBL quarterly", g_are: "Africa Re quarterly", c_team: "Team & access", c_rules: "Sign off rules", c_word: "Sign off wordings", c_audit: "Audit trail", g_alerts: "Alerts", g_share: "Share approvals" } },
   agents: { name: "Agents & Brokers", desc: "One place for agents and brokers: register, give policies to them, their accounts, and commission payments.", roles: ["underwriter", "gm", "admin", "accountant", "board"],
     tabs: { ag_list: "Agents & brokers", ag_alloc: "Give policies", ag_pol: "Agents' policies", a_comm: "Commission payments" } },
   re: { name: "Reinsurers", desc: "Africa Re and other reinsurers: what we owe them, what they owe us on claims, policies ceded, payments. Held by the GM and CEO.", roles: ["gm", "admin", "accountant"],
@@ -898,6 +898,20 @@ const VIEWS = {
         say(`USD ${money(x.paid)} paid to ${x.name} posted · still owed USD ${money(x.owed_after)}`); VIEWS.a_comm();
       } catch (e) { if (/already posted/.test(e.message)) $("k_dupL").classList.remove("hide"); throw e; }
     });
+  },
+  // ===== Books check (v5.6) =====
+  async a_check() {
+    const { data: { session } } = await sb.auth.getSession();
+    const run1 = async (d) => {
+      const r = await fetch(SB_URL + "/functions/v1/platcheck", { method: "POST", headers: { "Content-Type": "application/json", Authorization: "Bearer " + session.access_token, apikey: SB_KEY }, body: JSON.stringify({ date: d }) });
+      const j = await r.json().catch(() => ({ error: "Server error" })); if (!r.ok || j.error) throw new Error(j.error || "Error"); return j; };
+    const d = await run1(BC_DATE || today());
+    const bad = d.checks.filter((c) => !c.ok).length;
+    V().innerHTML = kpis([["Checks passed", (d.checks.length - bad) + " of " + d.checks.length, bad > 0], ["As at", String(d.as_at)]]) +
+      `<div class="card"><div class="row" style="justify-content:space-between"><div><h2>${bad ? "⚠ " + bad + " check" + (bad > 1 ? "s" : "") + " need attention" : "✓ The books agree"}</h2><p class="note">Run this before closing each month. Each line compares the account in the books with the detail behind it.</p></div>
+        <label>As at<input type="date" id="bc_d" value="${esc(String(d.as_at))}"></label></div>
+        <div class="tablewrap"><table><thead><tr><th></th><th>Check</th><th>Result</th></tr></thead><tbody>${d.checks.map((c) => `<tr><td style="font-size:18px">${c.ok ? "✓" : "⚠"}</td><td><b>${esc(c.check)}</b></td><td class="wrap" style="color:${c.ok ? "inherit" : "var(--red)"}">${esc(c.note || "")}</td></tr>`).join("")}</tbody></table></div></div>`;
+    $("bc_d").onchange = run(async () => { BC_DATE = $("bc_d").value; await VIEWS.a_check(); });
   },
   // ===== Reinsurer accounts (v5.3) =====
   async re_acc(id) {
